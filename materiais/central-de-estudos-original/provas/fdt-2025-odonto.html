@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Prova Odontologia · Residência FDT 2025</title>
+<style>
+  :root{
+    --bg:#eef1ef; --surface:#ffffff; --surface-2:#f6f8f7;
+    --ink:#16211f; --ink-soft:#4a5a56; --ink-faint:#7d8c88;
+    --line:#dce3e0; --line-soft:#e7ecea;
+    --petrol:#0f5c56; --petrol-deep:#0a423e; --petrol-tint:#e2efec;
+    --gold:#b8791f; --gold-tint:#f6ecd9;
+    --ok:#1c7a4d; --ok-bg:#e3f4ea; --ok-line:#a9dcbf;
+    --no:#b23a3a; --no-bg:#fbe7e5; --no-line:#eeb4ae;
+    --shadow:0 1px 2px rgba(16,40,36,.06),0 8px 24px -12px rgba(16,40,36,.18);
+    --radius:16px;
+  }
+  :root:not([data-theme="light"]){ }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0c1413; --surface:#111b19; --surface-2:#0f1817;
+      --ink:#e8efec; --ink-soft:#a8b8b3; --ink-faint:#71827d;
+      --line:#22302d; --line-soft:#1a2624;
+      --petrol:#4fb3a6; --petrol-deep:#2a8377; --petrol-tint:#12302c;
+      --gold:#d9a martin; --gold:#d6a css; --gold:#d8a94e; --gold-tint:#2a2413;
+      --ok:#57c98a; --ok-bg:#132a20; --ok-line:#265f43;
+      --no:#e88b84; --no-bg:#2c1613; --no-line:#5f2a26;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0c1413; --surface:#111b19; --surface-2:#0f1817;
+    --ink:#e8efec; --ink-soft:#a8b8b3; --ink-faint:#71827d;
+    --line:#22302d; --line-soft:#1a2624;
+    --petrol:#4fb3a6; --petrol-deep:#2a8377; --petrol-tint:#12302c;
+    --gold:#d8a94e; --gold-tint:#2a2413;
+    --ok:#57c98a; --ok-bg:#132a20; --ok-line:#265f43;
+    --no:#e88b84; --no-bg:#2c1613; --no-line:#5f2a26;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Ubuntu,Helvetica,Arial,sans-serif;
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+    padding-bottom:calc(96px + env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 14px}
+
+  /* Header */
+  header{
+    position:sticky;top:0;z-index:40;
+    background:linear-gradient(180deg,var(--petrol-deep),var(--petrol));
+    color:#f2f8f6; padding:calc(12px + env(safe-area-inset-top)) 0 12px;
+    box-shadow:0 6px 20px -12px rgba(10,50,45,.7);
+  }
+  header .wrap{display:flex;align-items:center;gap:12px}
+  .brand{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+  .brand h1{font-size:15px;font-weight:700;margin:0;letter-spacing:.1px;line-height:1.2}
+  .brand span{font-size:11.5px;color:#bfe0da;font-weight:500}
+  .score-badge{
+    display:flex;flex-direction:column;align-items:flex-end;gap:2px;
+    font-variant-numeric:tabular-nums;line-height:1;flex-shrink:0
+  }
+  .score-badge b{font-size:17px;font-weight:750}
+  .score-badge small{font-size:10.5px;color:#bfe0da}
+  .track{height:5px;background:rgba(255,255,255,.18);border-radius:99px;margin-top:11px;overflow:hidden}
+  .track > i{display:block;height:100%;width:0;background:var(--gold);border-radius:99px;transition:width .35s ease}
+
+  /* Filters */
+  .filters{display:flex;gap:7px;overflow-x:auto;padding:12px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .filters::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink-soft);font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:99px;cursor:pointer;
+    white-space:nowrap;transition:.15s
+  }
+  .chip[aria-pressed="true"]{background:var(--petrol);border-color:var(--petrol);color:#fff}
+
+  /* Question card */
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:18px 16px 16px;margin-top:12px
+  }
+  .qhead{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+  .qnum{
+    font-weight:800;font-size:14px;color:var(--petrol);background:var(--petrol-tint);
+    border-radius:9px;padding:5px 10px;font-variant-numeric:tabular-nums
+  }
+  .qtag{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-faint)}
+  .qtag.gold{color:var(--gold)}
+  .flag{margin-left:auto;background:none;border:none;cursor:pointer;font-size:19px;line-height:1;padding:2px 4px;color:var(--ink-faint);opacity:.55}
+  .flag[aria-pressed="true"]{opacity:1;color:var(--gold)}
+
+  .enun{font-size:15.5px;color:var(--ink);margin:0 0 6px}
+  .enun p{margin:0 0 10px}
+  .sub{
+    background:var(--surface-2);border:1px solid var(--line-soft);border-radius:12px;
+    padding:11px 13px;margin:10px 0;font-size:14px;color:var(--ink-soft)
+  }
+  .sub .lab{font-weight:700;color:var(--ink);display:block;margin-bottom:4px;font-size:12.5px;letter-spacing:.2px}
+  .sub ol,.sub ul{margin:4px 0 0;padding-left:20px}
+  .sub li{margin:3px 0}
+  .sub .rn li{list-style:none;margin:5px 0;padding-left:22px;position:relative}
+  .sub .rn li::before{content:"( )";position:absolute;left:0;color:var(--ink-faint);font-weight:600}
+  .ask{font-size:14px;font-weight:600;color:var(--ink);margin:12px 0 2px}
+
+  /* Options */
+  .opts{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+  .opt{
+    display:flex;gap:11px;align-items:flex-start;text-align:left;width:100%;
+    background:var(--surface);border:1.5px solid var(--line);border-radius:13px;
+    padding:12px 13px;cursor:pointer;font-size:14.5px;color:var(--ink);transition:.14s;
+    -webkit-tap-highlight-color:transparent
+  }
+  .opt:active{transform:scale(.995)}
+  .opt .key{
+    flex:0 0 auto;width:25px;height:25px;border-radius:8px;border:1.5px solid var(--line);
+    display:grid;place-items:center;font-weight:800;font-size:13px;color:var(--ink-soft);transition:.14s
+  }
+  .opt .txt{flex:1;padding-top:1px}
+  .opt[data-state="sel"]{border-color:var(--petrol);background:var(--petrol-tint)}
+  .opt[data-state="sel"] .key{border-color:var(--petrol);background:var(--petrol);color:#fff}
+  .opt[data-state="ok"]{border-color:var(--ok-line);background:var(--ok-bg)}
+  .opt[data-state="ok"] .key{border-color:var(--ok);background:var(--ok);color:#fff}
+  .opt[data-state="no"]{border-color:var(--no-line);background:var(--no-bg)}
+  .opt[data-state="no"] .key{border-color:var(--no);background:var(--no);color:#fff}
+  .opt[disabled]{cursor:default}
+  .opt .mark{margin-left:auto;font-weight:800;font-size:12px;align-self:center}
+  .opt[data-state="ok"] .mark{color:var(--ok)}
+  .opt[data-state="no"] .mark{color:var(--no)}
+
+  .confirm{
+    width:100%;margin-top:14px;border:none;border-radius:13px;cursor:pointer;
+    background:var(--petrol);color:#fff;font-size:15px;font-weight:700;padding:14px;transition:.15s
+  }
+  .confirm:disabled{background:var(--line);color:var(--ink-faint);cursor:not-allowed}
+
+  /* Explanation */
+  .expl{margin-top:14px;border-radius:13px;overflow:hidden;border:1px solid var(--line);animation:reveal .3s ease}
+  @keyframes reveal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.expl{animation:none}}
+  .expl .verdict{
+    display:flex;align-items:center;gap:9px;padding:11px 14px;font-weight:750;font-size:14px
+  }
+  .expl.win .verdict{background:var(--ok-bg);color:var(--ok)}
+  .expl.lose .verdict{background:var(--no-bg);color:var(--no)}
+  .expl .verdict .gab{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--ink-soft)}
+  .expl .body{padding:13px 14px;background:var(--surface);font-size:14px;color:var(--ink-soft)}
+  .expl .body b{color:var(--ink)}
+  .expl .body .why{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)}
+
+  /* Nav bottom */
+  .navbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:45;
+    background:var(--surface);border-top:1px solid var(--line);
+    padding:9px 0 calc(9px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px -14px rgba(16,40,36,.5)
+  }
+  .navbar .wrap{display:flex;align-items:center;gap:8px}
+  .nb{
+    border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:12px;padding:11px 14px;font-size:14px;font-weight:650;cursor:pointer;transition:.14s
+  }
+  .nb:active{transform:scale(.97)}
+  .nb.wide{flex:1;text-align:center;background:var(--surface-2)}
+  .nb.grid-btn{font-weight:700}
+  .nb:disabled{opacity:.4;cursor:default}
+
+  /* Grid overlay */
+  .overlay{position:fixed;inset:0;z-index:60;display:none;background:rgba(10,25,22,.5);backdrop-filter:blur(2px)}
+  .overlay.show{display:block}
+  .sheet{
+    position:absolute;left:0;right:0;bottom:0;background:var(--surface);
+    border-radius:20px 20px 0 0;padding:16px 14px calc(18px + env(safe-area-inset-bottom));
+    max-height:82vh;overflow:auto;box-shadow:0 -10px 40px -10px rgba(0,0,0,.4)
+  }
+  .sheet h2{font-size:14px;margin:2px 4px 12px;display:flex;align-items:center}
+  .sheet h2 .close{margin-left:auto;background:none;border:none;font-size:22px;color:var(--ink-faint);cursor:pointer;line-height:1}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 4px 12px;font-size:11.5px;color:var(--ink-faint)}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:4px;margin-right:5px;vertical-align:-1px}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  @media(min-width:480px){.grid{grid-template-columns:repeat(10,1fr)}}
+  .cell{
+    aspect-ratio:1;border-radius:10px;border:1.5px solid var(--line);background:var(--surface-2);
+    font-weight:750;font-size:13px;color:var(--ink-soft);cursor:pointer;font-variant-numeric:tabular-nums;
+    display:grid;place-items:center;position:relative;transition:.12s
+  }
+  .cell.ok{background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok)}
+  .cell.no{background:var(--no-bg);border-color:var(--no-line);color:var(--no)}
+  .cell.cur{outline:2px solid var(--petrol);outline-offset:1px}
+  .cell .dot{position:absolute;top:3px;right:4px;font-size:9px;color:var(--gold)}
+  .sec-label{grid-column:1/-1;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-faint);margin:10px 4px 2px}
+  .sheet .reset{margin-top:16px;width:100%;border:1px solid var(--no-line);background:var(--no-bg);color:var(--no);border-radius:12px;padding:12px;font-weight:650;cursor:pointer;font-size:13.5px}
+
+  /* Done summary */
+  .done{
+    background:linear-gradient(160deg,var(--petrol),var(--petrol-deep));color:#eefaf7;
+    border-radius:var(--radius);padding:20px 18px;margin-top:12px;text-align:center;box-shadow:var(--shadow)
+  }
+  .done .big{font-size:40px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+  .done .lbl{font-size:13px;color:#c5e6e0;margin-top:6px}
+  .done .split{display:flex;gap:10px;margin-top:16px}
+  .done .split div{flex:1;background:rgba(255,255,255,.1);border-radius:12px;padding:10px 6px}
+  .done .split b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+  .done .split small{font-size:10.5px;color:#bfe0da}
+
+  .foot{text-align:center;color:var(--ink-faint);font-size:11px;padding:20px 0 6px}
+  .theme-btn{background:none;border:none;color:#bfe0da;font-size:17px;cursor:pointer;padding:2px 4px;flex-shrink:0}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <h1>Odontologia · Residência FDT 2025</h1>
+      <span>60 questões · toque, confirme e veja o porquê</span>
+    </div>
+    <button class="theme-btn" id="themeBtn" aria-label="Alternar tema">◐</button>
+    <div class="score-badge">
+      <b id="scoreN">0/0</b>
+      <small id="scorePct">respondidas</small>
+    </div>
+  </div>
+  <div class="wrap"><div class="track"><i id="bar"></i></div></div>
+</header>
+
+<div class="wrap">
+  <div class="filters" id="filters">
+    <button class="chip" data-f="all" aria-pressed="true">Todas</button>
+    <button class="chip" data-f="sus" aria-pressed="false">SUS · 1–20</button>
+    <button class="chip" data-f="odo" aria-pressed="false">Odonto · 21–60</button>
+    <button class="chip" data-f="todo" aria-pressed="false">Não respondidas</button>
+    <button class="chip" data-f="wrong" aria-pressed="false">Erradas</button>
+    <button class="chip" data-f="flag" aria-pressed="false">★ Marcadas</button>
+  </div>
+
+  <div id="stage"></div>
+</div>
+
+<div class="navbar">
+  <div class="wrap">
+    <button class="nb" id="prev" aria-label="Anterior">‹</button>
+    <button class="nb wide grid-btn" id="gridBtn">Questões</button>
+    <button class="nb" id="next" aria-label="Próxima">›</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2>Navegar pelas questões <button class="close" id="closeSheet" aria-label="Fechar">×</button></h2>
+    <div class="legend">
+      <span><i style="background:var(--ok-line)"></i>Acerto</span>
+      <span><i style="background:var(--no-line)"></i>Erro</span>
+      <span><i style="background:var(--surface-2);border:1px solid var(--line)"></i>Aberta</span>
+      <span><i style="background:var(--gold)"></i>★ Marcada</span>
+    </div>
+    <div class="grid" id="grid"></div>
+    <button class="reset" id="resetBtn">Apagar meu progresso e recomeçar</button>
+  </div>
+</div>
+
+<script>
+const Q = [
+// ---------- BLOCO SUS / SAÚDE COLETIVA ----------
+{n:1,bl:"sus",en:`<p>Considerando as reflexões de Macedo e Medeiros (2025) sobre marcadores sociais da diferença, interseccionalidade e saúde coletiva, analise as assertivas sobre a <b>interseccionalidade</b>:</p>
+<div class="sub"><ol><li>Não se limita ao acúmulo de identidades, mas funciona como lente analítica que revela como estruturas sociais interagem e produzem efeitos políticos e legais.</li><li>Considera que raça, classe, gênero, orientação sexual, nacionalidade, capacidade, etnia e faixa etária estão inter-relacionadas e se moldam mutuamente.</li><li>É uma forma de entender e explicar a complexidade do mundo, das pessoas e das experiências humanas.</li></ol></div>`,
+o:{A:"Todas as assertivas estão corretas.",B:"Todas as assertivas estão incorretas.",C:"Apenas as assertivas I e II estão corretas.",D:"Apenas as assertivas II e III estão corretas."},c:"A",
+ex:`As três assertivas descrevem corretamente a interseccionalidade: lente analítica (I), categorias inter-relacionadas (II) e ferramenta para explicar a complexidade das experiências (III).<div class="why">Como nenhuma está incorreta, caem B, C e D.</div>`},
+
+{n:2,bl:"sus",en:`<p>Considerando a divisão do território na ESF a partir de três níveis de atuação, relacione as colunas.</p>
+<div class="sub"><span class="lab">Coluna 1</span><ol><li>Território-área.</li><li>Território-microárea.</li><li>Território moradia.</li></ol></div>
+<div class="sub"><span class="lab">Coluna 2</span><ul class="rn"><li>Corresponde à área de atuação do ACS.</li><li>Espaço de menor agregação social; aprofunda o conhecimento para ações de saúde.</li><li>Representa o espaço-população adstrita.</li><li>Espaço onde se estabelece vínculo com a unidade de saúde.</li><li>Subdivisão do território-área.</li></ul></div>
+<p class="ask">Ordem correta, de cima para baixo:</p>`,
+o:{A:"3 – 1 – 2 – 2 – 3.",B:"2 – 3 – 1 – 1 – 2.",C:"2 – 1 – 3 – 3 – 3.",D:"1 – 3 – 3 – 1 – 2."},c:"B",
+ex:`<b>Microárea (2)</b> = área do ACS e subdivisão do território-área. <b>Território-moradia (3)</b> = menor agregação social (o domicílio). <b>Território-área (1)</b> = população adstrita e vínculo com a unidade. Sequência: <b>2 – 3 – 1 – 1 – 2</b>.`},
+
+{n:3,bl:"sus",en:`<p>Sobre a organização das Redes Temáticas de Atenção à Saúde no SUS, assinale a que <b>NÃO</b> corresponde a uma rede oficialmente estabelecida atualmente.</p>`,
+o:{A:"Rede de Atenção às Urgências e Emergências (RUE).",B:"Rede de Atenção Psicossocial (RAPS).",C:"Rede de Atenção à População Geral.",D:"Rede Alyne."},c:"C",
+ex:`As redes temáticas são <b>específicas</b> — não existe "Rede de Atenção à População Geral".<div class="why">RUE e RAPS são redes oficiais; a Rede Alyne (Atenção Materna e Infantil, criada em 2024) também é oficial. Por isso A, B e D não servem como resposta.</div>`},
+
+{n:4,bl:"sus",en:`<p>Nos termos do art. 200 da Constituição Federal de 1988, ao SUS compete, <b>EXCETO</b>:</p>`,
+o:{A:"Ordenar a formação de recursos humanos na área de saúde.",B:"Formular políticas e executar ações de saneamento básico.",C:"Controlar e fiscalizar procedimentos, produtos e substâncias de interesse para a saúde e participar da produção de medicamentos, equipamentos, imunobiológicos, hemoderivados e insumos.",D:"Executar as ações de vigilância sanitária e epidemiológica e as de saúde do trabalhador."},c:"B",
+ex:`O art. 200, IV, diz que ao SUS compete <b>participar da formulação da política e da execução</b> das ações de saneamento — e não "formular políticas e executar" de forma isolada.<div class="why">A, C e D constam literalmente entre as competências do art. 200.</div>`},
+
+{n:5,bl:"sus",en:`<p>Sobre direitos e deveres dos usuários (Portaria de Consolidação nº 1/2017), julgue V ou F:</p>
+<div class="sub"><ul class="rn"><li>Toda pessoa tem responsabilidade para que seu tratamento e recuperação sejam adequados e sem interrupção.</li><li>Toda pessoa tem a obrigação de participar dos conselhos e conferências de saúde.</li><li>Toda pessoa deve ter valores, cultura e direitos respeitados na relação com os serviços.</li><li>Toda pessoa tem direito ao acesso a bens e serviços ordenados e organizados para promoção, prevenção, proteção, tratamento e recuperação da saúde.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"F – F – F – V.",B:"F – V – V – F.",C:"V – V – F – F.",D:"V – F – V – V."},c:"D",
+ex:`Participar de conselhos e conferências é um <b>direito</b>, não uma "obrigação" — por isso a 2ª é <b>F</b>. As demais são direitos/deveres previstos na Portaria: <b>V – F – V – V</b>.`},
+
+{n:6,bl:"sus",en:`<p>A telessaúde abrange a prestação remota de serviços das profissões de saúde. São princípios da telessaúde:</p>
+<div class="sub"><ol><li>Autonomia do profissional de saúde.</li><li>Consentimento livre e informado do paciente.</li><li>Dignidade e valorização do profissional de saúde.</li></ol></div>
+<p class="ask">Quais estão corretos?</p>`,
+o:{A:"Apenas I.",B:"Apenas III.",C:"Apenas I e II.",D:"I, II e III."},c:"D",
+ex:`Todos os três são princípios da telessaúde (Lei nº 14.510/2022): autonomia do profissional, consentimento livre e informado do paciente e dignidade/valorização do profissional.`},
+
+{n:7,bl:"sus",en:`<p>Informações relacionadas à <b>escolaridade, renda e condições de moradia</b> estão associadas a qual indicador?</p>`,
+o:{A:"Saúde ambiental.",B:"Demográfico.",C:"Socioeconômico.",D:"Nutrição, crescimento e desenvolvimento."},c:"C",
+ex:`Escolaridade, renda e moradia são componentes clássicos do indicador <b>socioeconômico</b>.<div class="why">O ambiental trata de saneamento/água; o demográfico, da estrutura populacional.</div>`},
+
+{n:8,bl:"sus",en:`<p>Conforme Carvalho, Pinho e Garcia (2017), complete: taxas elevadas de mortalidade ____ refletem baixo desenvolvimento socioeconômico; a mortalidade ____ estima risco de óbito até 27 dias; a mortalidade ____ estima risco de 28 a 364 dias; e a mortalidade ____ refere-se a óbitos entre 22 semanas de gestação e 7 dias de vida.</p>
+<p class="ask">Assinale a sequência correta:</p>`,
+o:{A:"infantil – neonatal – pós-neonatal – perinatal",B:"infantil – perinatal – pós-neonatal – neonatal",C:"pós-neonatal – neonatal – infantil – neonatal",D:"neonatal – pós-neonatal – infantil – perinatal"},c:"A",
+ex:`<b>Infantil</b> reflete desenvolvimento socioeconômico; <b>neonatal</b> = até 27 dias; <b>pós-neonatal</b> = 28 a 364 dias; <b>perinatal</b> = de 22 semanas de gestação a 7 dias de vida.`},
+
+{n:9,bl:"sus",en:`<p>Sobre o acolhimento da demanda espontânea na Atenção Básica, assinale a alternativa <b>INCORRETA</b>.</p>`,
+o:{A:"A equipe deve atender todas as pessoas conforme sua necessidade, não apenas grupos ou agravos fragmentados por ciclo de vida.",B:"A coexistência de agendas programadas e de demanda espontânea não amplia o acesso aos serviços de saúde.",C:"A implantação do acolhimento pode provocar mudanças na organização das equipes, na relação entre trabalhadores e no modo de cuidar.",D:"Organizar a partir do acolhimento exige refletir sobre o conjunto de ofertas para lidar com as necessidades da população e do território."},c:"B",
+ex:`A incorreta é a <b>B</b>: a coexistência de agendas programadas e de demanda espontânea <b>amplia</b> (e não deixa de ampliar) o acesso.<div class="why">A, C e D descrevem corretamente o acolhimento.</div>`},
+
+{n:10,bl:"sus",en:`<p>Sobre a Educação Interprofissional em Saúde (Costa, 2017), julgue V ou F:</p>
+<div class="sub"><ul class="rn"><li>Define-se por um processo de aprendizagem com, para e sobre outras profissões.</li><li>Tem como finalidade formar profissionais colaborativos e integrados, rompendo com a formação uniprofissional.</li><li>A colaboração sustenta-se em quatro pilares: compartilhamento, parceria, interdependência e poder.</li><li>Os termos multidisciplinar e interprofissional podem ser usados como sinônimos.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"V – F – F – F.",B:"V – V – V – F.",C:"F – V – F – V.",D:"F – F – V – V."},c:"B",
+ex:`Multidisciplinar e interprofissional <b>não</b> são sinônimos — a 4ª é <b>F</b>. As definições de EIP e os quatro pilares (compartilhamento, parceria, interdependência e poder) estão corretos: <b>V – V – V – F</b>.`},
+
+{n:11,bl:"sus",en:`<p>O SUS será ____ com recursos do orçamento da seguridade social da União, Estados, DF e Municípios, e de outras fontes. A Lei presume que a aplicação de ____ mínimos será feita de forma progressiva.</p>
+<p class="ask">Assinale a sequência correta:</p>`,
+o:{A:"regulado – padrões",B:"regulado – serviços",C:"financiado – serviços",D:"financiado – recursos"},c:"D",
+ex:`O SUS será <b>financiado</b> com recursos da seguridade social, e a aplicação de <b>recursos</b> mínimos será progressiva (Lei nº 8.080/1990).`},
+
+{n:12,bl:"sus",en:`<p>De acordo com o Decreto nº 7.508/2011, o acesso universal e igualitário às ações e serviços de saúde efetua-se preferencialmente por meio da:</p>`,
+o:{A:"Autonomia da escolha dos usuários entre os estabelecimentos da rede privada.",B:"Porta de entrada do SUS, definida pela Atenção Primária à Saúde.",C:"Porta de entrada principal representada pelos serviços hospitalares de alta complexidade.",D:"Atenção domiciliar e serviços de pronto atendimento."},c:"B",
+ex:`O acesso ordenado inicia-se pela <b>porta de entrada definida pela Atenção Primária</b>.<div class="why">Alta complexidade não é porta de entrada preferencial (C); o acesso não se dá pela rede privada (A).</div>`},
+
+{n:13,bl:"sus",en:`<p>Sobre o processo histórico da construção do SUS, julgue V ou F:</p>
+<div class="sub"><ul class="rn"><li>A Reforma Sanitária teve como marco a 8ª Conferência Nacional de Saúde (1986), defendendo a saúde como direito de cidadania e dever do Estado.</li><li>O SUS foi instituído pela CF/1988 e regulamentado pelas Leis nº 8.080/1990 e nº 8.142/1991.</li><li>Antes do SUS, o sistema era universal, com acesso a toda a população via INAMPS.</li><li>As Ações Integradas de Saúde (AIS) foram uma tentativa de municipalização antes de 1988.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"V – V – F – V.",B:"V – F – V – F.",C:"F – V – F – V.",D:"F – F – V – F."},c:"A",
+ex:`8ª CNS de 1986 (V) e AIS como pré-municipalização (V) são corretas. Antes do SUS o INAMPS cobria só os contribuintes — <b>não</b> era universal (F). Gabarito <b>V – V – F – V</b>.<div class="why">Atenção: a Lei nº 8.142 é de <b>1990</b>, não 1991. A banca considerou a 2ª verdadeira pelo conteúdo (SUS instituído pela CF/88 e regulamentado pelas duas leis), apesar do erro no ano.</div>`},
+
+{n:14,bl:"sus",en:`<p>Sobre a Rede de Atenção à Saúde (RAS), conforme o Decreto nº 7.508/2011:</p>
+<div class="sub"><ol><li>A RAS é composta unicamente por serviços da Atenção Primária.</li><li>A atenção às urgências e emergências é componente da RAS.</li><li>A coordenação do cuidado e o acesso regulado são princípios da RAS.</li></ol></div>
+<p class="ask">Quais estão corretas?</p>`,
+o:{A:"Apenas I.",B:"Apenas II.",C:"Apenas I e III.",D:"Apenas II e III."},c:"D",
+ex:`A RAS <b>não</b> é composta só pela APS (I é falsa). Urgência/emergência é componente (II) e coordenação do cuidado/acesso regulado são princípios (III): gabarito <b>II e III</b>.`},
+
+{n:15,bl:"sus",en:`<p>Sobre princípios e diretrizes da Política Nacional de Humanização (PNH):</p>
+<div class="sub"><ol><li>Defende ampliação da autonomia, protagonismo e corresponsabilização entre trabalhadores, gestores e usuários.</li><li>A humanização restringe-se ao bom atendimento, com foco na cordialidade.</li><li>A valorização do trabalho e do trabalhador é uma de suas diretrizes.</li><li>Propõe a indissociabilidade entre atenção e gestão dos serviços.</li></ol></div>
+<p class="ask">Quais estão corretas?</p>`,
+o:{A:"Apenas I e II.",B:"Apenas II e III.",C:"Apenas I, III e IV.",D:"I, II, III e IV."},c:"C",
+ex:`A humanização <b>não</b> se restringe a cordialidade (II é falsa). Autonomia/protagonismo (I), valorização do trabalhador (III) e indissociabilidade atenção-gestão (IV) são corretas: <b>I, III e IV</b>.`},
+
+{n:16,bl:"sus",en:`<p>Um dos dispositivos utilizados na transversalização da PNH é o(a):</p>`,
+o:{A:"Acolhimento com classificação de risco e sistema de ausculta qualificada.",B:"Centralização do cuidado nas ações médicas e hospitalares.",C:"Hierarquização rígida dos processos decisórios nas instituições.",D:"Fortalecimento das relações verticalizadas entre gestores e usuários."},c:"A",
+ex:`O <b>acolhimento com classificação de risco e ausculta qualificada</b> é dispositivo da PNH.<div class="why">Centralização, hierarquização rígida e verticalização contrariam os princípios da Política.</div>`},
+
+{n:17,bl:"sus",en:`<p>Sobre os Contratos Organizativos da Ação Pública da Saúde (COAP), Decreto nº 7.508/2011:</p>`,
+o:{A:"Sua celebração é facultativa e não interfere na pactuação das responsabilidades dos entes.",B:"Definem responsabilidades sanitárias, metas, indicadores e formas de monitoramento e avaliação entre os entes da federação.",C:"Substituem instrumentos de planejamento como o Plano de Saúde e a Programação Anual de Saúde.",D:"Definem somente responsabilidades e monitoramento entre os entes dos Estados."},c:"B",
+ex:`O COAP <b>define responsabilidades sanitárias, metas, indicadores e formas de monitoramento</b> entre os entes.<div class="why">Não é inócuo (A), não substitui Plano/PAS (C) e não se restringe aos Estados (D).</div>`},
+
+{n:18,bl:"sus",en:`<p>Sobre princípios e diretrizes do SUS, julgue V ou F:</p>
+<div class="sub"><ul class="rn"><li>A equidade denota tratar igualmente todos os cidadãos, independentemente de necessidades específicas.</li><li>A descentralização com comando único é diretriz que garante autonomia a estados e municípios.</li><li>A contribuição da comunidade é garantida por conselhos e conferências.</li><li>A integralidade implica acesso a todos os níveis de atenção, da promoção à alta complexidade.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"F – V – V – V.",B:"F – V – F – V.",C:"V – V – V – F.",D:"V – F – V – F."},c:"A",
+ex:`Equidade <b>não</b> é tratar todos igualmente (1ª é F) — é tratar conforme a necessidade. Descentralização com comando único, controle social e integralidade são verdadeiras: <b>F – V – V – V</b>.`},
+
+{n:19,bl:"sus",en:`<p>Sobre as equipes eMulti, assinale a correta.</p>`,
+o:{A:"Devem ser compostas somente por nutricionistas e fisioterapeutas, respeitando necessidades locais e composição mínima.",B:"Devem ser compostas somente por fisioterapeutas e assistentes sociais, com composição fixa nacional.",C:"Podem ser compostas por nutricionistas, fisioterapeutas, assistentes sociais, entre outros, respeitando necessidades locais e a composição mínima estabelecida.",D:"Podem ser compostas por nutricionistas, assistentes sociais e outros, com composição fixa nacional, independentemente das necessidades locais."},c:"C",
+ex:`As eMulti têm composição <b>flexível</b>, definida conforme necessidades locais e a composição mínima estabelecida.<div class="why">Não são restritas a duas categorias (A, B) nem têm composição fixa nacional (D).</div>`},
+
+{n:20,bl:"sus",en:`<p>Sobre a Política Nacional de Educação Permanente em Saúde (MS, 2018), relacione:</p>
+<div class="sub"><span class="lab">Coluna 1</span><ol><li>Educação Permanente em Saúde (EPS).</li><li>Planejamento ascendente.</li><li>Integração ensino-serviço.</li><li>Cogestão dos processos de trabalho.</li></ol></div>
+<div class="sub"><span class="lab">Coluna 2</span><ul class="rn"><li>Presume a escuta de trabalhadores e usuários na definição de prioridades formativas.</li><li>Apoia-se na problematização das práticas e faltas reais dos serviços.</li><li>Busca articular instituições formadoras e serviços na construção dos saberes.</li><li>Valoriza a construção coletiva e participativa da gestão e educação.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"2 – 1 – 3 – 4.",B:"4 – 2 – 3 – 1.",C:"2 – 1 – 4 – 3.",D:"3 – 2 – 1 – 4."},c:"A",
+ex:`<b>Planejamento ascendente (2)</b> = escuta de trabalhadores/usuários; <b>EPS (1)</b> = problematização das práticas; <b>integração ensino-serviço (3)</b> = articular formadoras e serviços; <b>cogestão (4)</b> = construção coletiva. Sequência <b>2 – 1 – 3 – 4</b>.`},
+
+// ---------- BLOCO ODONTOLOGIA ----------
+{n:21,bl:"odo",en:`<p>Sobre o atendimento do paciente traumatizado de face:</p>
+<div class="sub"><ol><li>Nos traumas craniofaciais, a avaliação bucomaxilofacial deve ser adiada até a rigorosa estabilização sistêmica — a chamada avaliação secundária.</li><li>As lacerações de tecidos moles caracterizam-se por perda das camadas epitelial e papilar da pele, ferida superficial, sangrante e dolorosa pela exposição de terminações nervosas.</li><li>Na inspeção, equimoses atrás da orelha (sinal de Battle) sugerem fratura do complexo zigomático e do arco zigomático.</li><li>Fraturas de mandíbula são favoráveis ou desfavoráveis conforme o traço e a tração muscular; nas desfavoráveis, a tração desloca os segmentos.</li></ol></div>
+<p class="ask">Quais estão corretas?</p>`,
+o:{A:"Apenas I e II.",B:"Apenas I e IV.",C:"Apenas III e IV.",D:"Apenas I, III e IV."},c:"B",
+ex:`Corretas: <b>I</b> (avaliação facial na etapa secundária, após ABCDE) e <b>IV</b> (fraturas favoráveis/desfavoráveis).<div class="why">II descreve <b>abrasão</b>, não laceração. O sinal de Battle indica <b>fratura de base de crânio</b>, não de zigomático (III falsa).</div>`},
+
+{n:22,bl:"odo",en:`<p>No acesso cirúrgico pré-auricular para a ATM, o nervo auriculotemporal, os vasos temporais superficiais e o nervo facial encontram-se logo abaixo de qual plano anatômico?</p>`,
+o:{A:"Fáscia Temporal Profunda.",B:"Fáscia Temporoparietal.",C:"Tecido Subcutâneo Denso.",D:"Tecido Subaponeurótico Frouxo."},c:"B",
+ex:`Essas estruturas situam-se logo abaixo da <b>fáscia temporoparietal</b> (fáscia temporal superficial, contínua com o SMAS).`},
+
+{n:23,bl:"odo",en:`<p>Sobre diagnóstico e tratamento das fraturas faciais:</p>
+<div class="sub"><ol><li>A oftalmoplegia é originada pelo aprisionamento do ligamento cantal (placa tarsal) no traço de fratura do assoalho da órbita.</li><li>Nas fraturas do complexo zigomático, a limitação de abertura bucal de origem mecânica decorre do deslocamento póstero-inferior do zigomático, que colide com o processo (coronoide).</li><li>Fraturas blow-out cursam com explosão do assoalho ou parede medial da órbita, com herniação de tecidos para o seio maxilar ou células etmoidais.</li><li>O acesso de Weber-Ferguson é indicado para grandes exposições da maxila.</li></ol></div>
+<p class="ask">Quais estão corretas?</p>`,
+o:{A:"Apenas I e II.",B:"Apenas II e III.",C:"Apenas II, III e IV.",D:"I, II, III e IV."},c:"C",
+ex:`A oftalmoplegia decorre do aprisionamento dos <b>músculos extraoculares</b> (reto inferior), não do ligamento cantal — I é falsa. Corretas: II, III e IV.<div class="why">Obs.: o enunciado da II escreve "processo zigomático", mas o sentido é a colisão com o <b>processo coronoide</b> da mandíbula, causando trismo.</div>`},
+
+{n:24,bl:"odo",en:`<p>Considerando a composição do tubete anestésico, qual é a principal função do <b>cloreto de sódio</b>?</p>`,
+o:{A:"Ser o diluente (veículo) para o volume de solução no tubete.",B:"Tornar a solução isotônica aos tecidos do corpo.",C:"Agir como bacteriostático.",D:"Evitar a oxidação do vasoconstritor pelo oxigênio."},c:"B",
+ex:`O cloreto de sódio torna a solução <b>isotônica</b> aos tecidos.<div class="why">O veículo é a água destilada (A); o metabissulfito de sódio é o antioxidante do vasoconstritor (D).</div>`},
+
+{n:25,bl:"odo",en:`<p>As fraturas LeFort III podem causar anosmia quando determinada estrutura papirácea é lesada. Qual é essa estrutura?</p>`,
+o:{A:"Lâmina crivosa do etmoide.",B:"Vômer.",C:"Lâmina horizontal do osso palatino.",D:"Asa maior do esfenoide."},c:"A",
+ex:`A anosmia decorre da lesão da <b>lâmina crivosa (cribriforme) do etmoide</b>, por onde passam as fibras do nervo olfatório.`},
+
+{n:26,bl:"odo",en:`<p>Infecção bacteriana oportunista de progressão rápida, causada por componentes normais da flora bucal que se tornam patogênicos no comprometimento imunológico, com necrose de tecidos moles sem contiguidade com a gengiva e zonas negro-azuladas na pele. Refere-se à:</p>`,
+o:{A:"Sífilis secundária.",B:"Noma.",C:"Guna.",D:"Lepra."},c:"B",
+ex:`Trata-se do <b>Noma</b> (cancrum oris): necrose de tecidos moles sem contiguidade com a gengiva e coloração negro-azulada.<div class="why">A GUNA (gengivite ulcerativa necrosante) é contígua à gengiva — o que exclui a alternativa C.</div>`},
+
+{n:27,bl:"odo",en:`<p>Segundo Hupp, Ellis e Tucker (2015), relacione acessos cirúrgicos às indicações:</p>
+<div class="sub"><span class="lab">Coluna 1</span><ol><li>Acesso submandibular (Risdon).</li><li>Acesso retromandibular.</li><li>Acesso pré-auricular.</li><li>Acesso intraoral.</li><li>Acesso coronal.</li></ol></div>
+<div class="sub"><span class="lab">Coluna 2</span><ul class="rn"><li>Fraturas do côndilo mandibular alto e fossa glenoide.</li><li>Abordagem estética/funcional do terço médio e frontal do crânio.</li><li>Acesso direto ao ângulo e corpo mandibular, preservando a estética facial.</li><li>Exposição do ramo mandibular e fraturas subcondilares baixas.</li><li>Redução aberta na região parotídea e côndilo médio.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"5 – 4 – 3 – 2 – 1.",B:"3 – 4 – 1 – 2 – 5.",C:"2 – 5 – 4 – 3 – 1.",D:"3 – 5 – 4 – 1 – 2."},c:"D",
+ex:`Pré-auricular (3) = côndilo alto/fossa glenoide; coronal (5) = terço médio/frontal; intraoral (4) = ângulo/corpo com estética preservada; Risdon (1) = ramo/subcondilar baixa; retromandibular (2) = região parotídea/côndilo médio. Sequência <b>3 – 5 – 4 – 1 – 2</b>.`},
+
+{n:28,bl:"odo",en:`<p>Sobre defeitos de face e cirurgia ortognática, julgue V ou F:</p>
+<div class="sub"><ul class="rn"><li>O avanço mandibular isolado é sempre suficiente para corrigir SAOS grave, sem necessidade de avanço maxilar.</li><li>Discrepância esqueletal ântero-posterior e vertical e a inter-relação angular entre incisivos são parâmetros importantes no diagnóstico de deformidade dentoalveolar.</li><li>O VSP aumentou a precisão dos movimentos, a comunicação entre equipes e a previsibilidade dos resultados.</li><li>Na abordagem minimamente invasiva, a osteotomia na face lateral do corpo dirige-se ao ângulo, facilitando a clivagem e reduzindo parestesia pós-operatória.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"V – V – F – F.",B:"F – V – V – F.",C:"V – F – F – V.",D:"F – V – V – V."},c:"D",
+ex:`O avanço mandibular isolado <b>nem sempre</b> resolve SAOS grave — muitas vezes exige avanço maxilar concomitante (1ª é F). Parâmetros cefalométricos, VSP e a osteotomia minimamente invasiva com menor parestesia são verdadeiros: <b>F – V – V – V</b>.`},
+
+{n:29,bl:"odo",en:`<p>O canal óptico é uma estrutura presente no osso ____, que compõe o esqueleto denominado ____.</p>
+<p class="ask">Assinale a sequência correta:</p>`,
+o:{A:"lacrimal – viscerocrânio",B:"etmoide – neurocrânio",C:"esfenoide – viscerocrânio",D:"esfenoide – neurocrânio"},c:"D",
+ex:`O canal óptico localiza-se na asa menor do <b>esfenoide</b>, osso do <b>neurocrânio</b>.`},
+
+{n:30,bl:"odo",en:`<p>Cirurgia que reposiciona e fixa o disco articular da ATM, indicada quando há deslocamento do disco com dor, estalos, travamento e dificuldade de movimentação. Refere-se à:</p>`,
+o:{A:"Artroscopia nível III.",B:"Discopexia aberta.",C:"Eminectomia.",D:"Condilectomia."},c:"B",
+ex:`A <b>discopexia (aberta)</b> reposiciona e fixa o disco articular.<div class="why">Eminectomia e condilectomia removem estruturas ósseas; artroscopia é minimamente invasiva/diagnóstica.</div>`},
+
+{n:31,bl:"odo",en:`<p>Segundo Miloro et al. (2016), os fatores que mais contribuem para a fasceíte necrotizante são:</p>`,
+o:{A:"Tabagismo e desnutrição.",B:"Alcoolismo e desnutrição.",C:"Uso de drogas e diabetes.",D:"Diabetes e imunossupressão."},c:"D",
+ex:`<b>Diabetes e imunossupressão</b> são os principais fatores associados à fasceíte necrotizante.`},
+
+{n:32,bl:"odo",en:`<p>Segundo Malamed (2016), relacione os medicamentos do kit de emergência às situações:</p>
+<div class="sub"><span class="lab">Coluna 1</span><ol><li>Adrenalina.</li><li>Midazolam.</li><li>Aspirina.</li><li>Broncodilatador.</li></ol></div>
+<div class="sub"><span class="lab">Coluna 2</span><ul class="rn"><li>Crises convulsivas.</li><li>Angina pectoris instável.</li><li>Episódio agudo de asma.</li><li>Anafilaxia.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"2 – 4 – 1 – 3.",B:"4 – 3 – 2 – 1.",C:"2 – 3 – 4 – 1.",D:"1 – 4 – 2 – 3."},c:"C",
+ex:`Convulsão → midazolam (2); angina instável → aspirina (3); asma aguda → broncodilatador (4); anafilaxia → adrenalina (1). Sequência <b>2 – 3 – 4 – 1</b>.`},
+
+{n:33,bl:"odo",en:`<p>Paciente jovem, ansiosa, com histórico de desmaios. Durante a exodontia apresenta movimentos corporais desordenados, gritos intermitentes e olhos firmemente cerrados; sem cianose, sem rash e com tremor nas mãos. Segundo Malamed (2016), qual a conduta mais adequada?</p>`,
+o:{A:"Interromper o procedimento, garantir segurança física, manter comunicação verbal tranquila e evitar medicação, tratando como crise conversiva.",B:"Administrar diazepam intramuscular imediatamente, considerando crise epiléptica prolongada.",C:"Manter em posição supina, administrar oxigênio e aguardar cessação espontânea, sem estimular contato verbal.",D:"Administrar glicose oral e posição lateral de segurança, considerando hipoglicemia reacional."},c:"A",
+ex:`Olhos <b>firmemente cerrados</b>, ausência de cianose/rash e o perfil ansioso apontam <b>crise conversiva</b> (não epiléptica): interromper, garantir segurança, comunicação tranquila, sem medicação.<div class="why">Diazepam, oxigênio ou glicose seriam para crise epiléptica ou hipoglicemia — diagnósticos afastados aqui.</div>`},
+
+{n:34,bl:"odo",en:`<p>Sobre a cirurgia periapical, assinale a correta.</p>`,
+o:{A:"Apicectomia consiste apenas em curetagem do ápice radicular.",B:"A cirurgia paraendodôntica pode ser indicada para todos os dentes, porém os molares têm indicação restrita pela dificuldade.",C:"A maioria das lesões periapicais é de origem odontogênica de desenvolvimento.",D:"A cirurgia periapical corrige o tratamento endodôntico mal realizado, sem necessidade de retratamento."},c:"B",
+ex:`A cirurgia paraendodôntica pode ser indicada em todos os dentes, com <b>restrição relativa nos molares</b> pela dificuldade de acesso.<div class="why">Apicectomia inclui ressecção apical (não só curetagem); a maioria das lesões periapicais é <b>inflamatória</b>; e o retratamento é a 1ª escolha antes da cirurgia.</div>`},
+
+{n:35,bl:"odo",en:`<p>Sobre os acessos cirúrgicos da região orbitária: as incisões acompanham as linhas tensionais da face (linhas de ____). No acesso ____ a incisão é a 1–2 mm da linha ciliar; já no acesso ____ a incisão é abaixo da lâmina tarsal, a 4–5 mm da linha ciliar.</p>
+<p class="ask">Assinale a sequência correta:</p>`,
+o:{A:"Lynch – subciliar – subtarsa",B:"Lynch – subtarsal – subciliar",C:"Langer – subciliar – subtarsal",D:"Langer – infraorbitário – subciliar"},c:"C",
+ex:`Linhas de <b>Langer</b>; acesso <b>subciliar</b> (1–2 mm da linha ciliar) e acesso <b>subtarsal</b> (4–5 mm, abaixo da lâmina tarsal).`},
+
+{n:36,bl:"odo",en:`<p>Sobre cirurgias dos dentes retidos, julgue V ou F:</p>
+<div class="sub"><ul class="rn"><li>O mau posicionamento é estado anormal, e o tratamento cirúrgico deve ser considerado mesmo em casos assintomáticos, para manutenção/otimização da saúde bucal.</li><li>Em adultos há tecidos de sustentação mais desenvolvidos e maior compactação óssea; a melhor época de extração antecede a rizogênese do primeiro terço radicular.</li><li>Alveolite é processo inflamatório ao redor da coroa de dente parcialmente erupcionado, mais frequente em terceiros molares mandibulares.</li><li>Terceiros molares ou caninos inferiores retidos mantêm área de menor resistência e aumentam o risco de fraturas; a remoção é justificada para prevenção.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"V – F – F – V.",B:"F – F – F – V.",C:"V – V – V – F.",D:"V – V – F – V."},c:"A",
+ex:`Corretas: 1ª (consideração de remoção mesmo assintomático) e 4ª (área de menor resistência a fraturas). A 2ª mistura conceitos e localiza mal a época ideal (F). A 3ª descreve <b>pericoronarite</b>, não alveolite (F). Gabarito <b>V – F – F – V</b>.`},
+
+{n:37,bl:"odo",en:`<p>Segundo os princípios da cirurgia BMF, relacione os termos às descrições:</p>
+<div class="sub"><span class="lab">Coluna 1</span><ol><li>Diérese.</li><li>Divulsão.</li><li>Exérese.</li><li>Síntese.</li></ol></div>
+<div class="sub"><span class="lab">Coluna 2</span><ul class="rn"><li>Retirada de todo o órgão/tecido ou parte deles, muitas vezes o objetivo da cirurgia.</li><li>Reaproximação dos tecidos seccionados ou ressecados.</li><li>Separação/divisão dos tecidos por instrumentos, geralmente com ponta romba.</li><li>Romper/interromper a integridade tecidual, penetrando nos tecidos.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"1 – 3 – 4 – 2.",B:"3 – 4 – 1 – 2.",C:"3 – 4 – 2 – 1.",D:"1 – 2 – 4 – 3."},c:"C",
+ex:`Exérese (3) = retirar tecido/órgão; síntese (4) = reaproximar; divulsão (2) = separar com ponta romba; diérese (1) = romper a integridade tecidual (incisão). Sequência <b>3 – 4 – 2 – 1</b>.`},
+
+{n:38,bl:"odo",en:`<p>São músculos classificados como infra-hióideos, <b>EXCETO</b>:</p>`,
+o:{A:"Estilo-hióideo.",B:"Esterno-hióideo.",C:"Esternotireóideo.",D:"Omo-hióideo."},c:"A",
+ex:`O <b>estilo-hióideo</b> é um músculo <b>supra-hióideo</b>.<div class="why">Esterno-hióideo, esternotireóideo e omo-hióideo (e o tíreo-hióideo) são os infra-hióideos.</div>`},
+
+{n:39,bl:"odo",en:`<p>Sobre anestesiologia geral na área BMF:</p>
+<div class="sub"><ol><li>Mallampati classe II corresponde à visualização do palato mole e base da úvula.</li><li>Paciente ASA III tem doença sistêmica moderada a grave (angina, DM não controlada, IRC em diálise).</li><li>Pacientes hígidos com menos de 40 anos podem ser operados apenas com exames de rotina e uma radiografia simples de tórax.</li><li>O jejum eletivo é de 2 h para líquidos claros, 6 h para líquidos com resíduos/fórmulas lácteas/refeições leves e 8 h para refeições completas.</li></ol></div>
+<p class="ask">Quais estão corretas?</p>`,
+o:{A:"Apenas I e II.",B:"Apenas II e III.",C:"Apenas II e IV.",D:"Apenas I, II e IV."},c:"C",
+ex:`Corretas: <b>II</b> (ASA III) e <b>IV</b> (jejum 2/6/8 h).<div class="why">"Base da úvula" corresponde à classe <b>III</b>, não II (I falsa). Pacientes hígidos jovens <b>não</b> exigem radiografia de tórax de rotina (III falsa).</div>`},
+
+{n:40,bl:"odo",en:`<p>Sobre Farmacologia Clínica, julgue V ou F:</p>
+<div class="sub"><ul class="rn"><li>Dependência corresponde à necessidade de aumentar progressivamente as doses para manter os efeitos iniciais.</li><li>Efeitos idiossincráticos são respostas peculiares de um indivíduo, qualitativamente diferentes do esperado.</li><li>Distribuição descreve a proporção (%) da dose administrada que chega ao sítio de ação ou aos fluidos orgânicos.</li><li>Biotransformação submete o fármaco a reações químicas, em geral enzimáticas, convertendo-o em composto diferente.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"F – F – F – V.",B:"V – V – F – V.",C:"V – F – V – F.",D:"F – V – F – V."},c:"D",
+ex:`A 1ª descreve <b>tolerância</b>, não dependência (F). A 3ª descreve <b>biodisponibilidade</b>, não distribuição (F). Idiossincrasia (V) e biotransformação (V) estão corretas: <b>F – V – F – V</b>.`},
+
+{n:41,bl:"odo",en:`<p>A Lei nº 14.572/2023 (Política Nacional de Saúde Bucal) estabelece princípios doutrinários. Estão entre eles, <b>EXCETO</b>:</p>`,
+o:{A:"Possibilitar acesso universal, equânime e contínuo a serviços de saúde bucal de qualidade, viabilizando recursos para eliminar a demanda reprimida.",B:"Estabelecer que compete à União, aos Estados e ao DF legislar concorrentemente sobre previdência social, proteção da saúde e das pessoas com deficiência e proteção à infância.",C:"Estimular a gestão participativa e o controle social em todas as esferas de governo na formulação de estratégias de saúde bucal.",D:"Assegurar que toda ação seja regida pelos princípios universais da ética em saúde."},c:"B",
+ex:`A alternativa <b>B</b> transcreve competência legislativa concorrente (art. 24 da CF) — não é princípio doutrinário da PNSB, sendo a exceção pedida.<div class="why">A, C e D são princípios da Lei nº 14.572/2023.</div>`},
+
+{n:42,bl:"odo",en:`<p>Sobre a Lei nº 14.572/2023 (PNSB):</p>
+<div class="sub"><ol><li>Configura modelo de organização e atuação para orientar as ações de saúde bucal em todos os níveis de atenção do SUS.</li><li>Considera a singularidade dos indivíduos, mas deve compreender somente ações intersetoriais, realizadas por equipe especializada.</li><li>Prevê política de educação permanente para trabalhadores da saúde bucal, com mudança na formação técnica, de graduação e pós-graduação.</li><li>As ações de saúde bucal devem se sobrepor às demais políticas de saúde, garantindo verba própria na articulação de ações públicas e privadas.</li></ol></div>
+<p class="ask">Quais estão corretas?</p>`,
+o:{A:"Apenas I e III.",B:"Apenas II e IV.",C:"Apenas I, III e IV.",D:"I, II, III e IV."},c:"A",
+ex:`Corretas: <b>I</b> (definição/modelo da PNSB) e <b>III</b> (educação permanente).<div class="why">II erra ao restringir com "somente" intersetorial e "equipe especializada". IV erra ao dizer que a saúde bucal deve "se sobrepor" às demais políticas e garantir verba própria.</div>`},
+
+{n:43,bl:"odo",en:`<p>Sobre o acolhimento na Atenção Básica (PNH e PNAB, Portaria nº 2.436/2017):</p>
+<div class="sub"><ol><li>É diretriz da PNH que amplia o acesso, pautando-se na escuta qualificada, no vínculo e na corresponsabilização.</li><li>A PNAB o reconhece como ferramenta organizadora dos processos de trabalho, voltada à integralidade e longitudinalidade do cuidado.</li><li>Tanto a PNH quanto a PNAB reduzem o acolhimento a instrumento administrativo de triagem e organização de filas.</li></ol></div>
+<p class="ask">Quais estão corretas?</p>`,
+o:{A:"Apenas I.",B:"Apenas I e II.",C:"Apenas I e III.",D:"Apenas II e III."},c:"B",
+ex:`Corretas: <b>I e II</b>. A III é falsa: reduzir o acolhimento a triagem administrativa <b>contraria</b> tanto a PNH quanto a PNAB.`},
+
+{n:44,bl:"odo",en:`<p>Município com água fluoretada (~0,7 mg F⁻/L) e alta prevalência de cárie em pré-escolares (2–5 anos). Segundo o Guia de fluoretos do Brasil (2024), qual a estratégia mais adequada?</p>`,
+o:{A:"Dentifrício de 500 ppm F⁻ nas creches, verniz anual em todas as crianças e enxaguatório NaF 0,05% a partir dos 4 anos.",B:"Escovação supervisionada com dentifrício 1.000–1.500 ppm F⁻ (grão de arroz até 3 anos; ervilha após), verniz 2×/ano nos de maior risco e DFP 38% para lesões cavitadas sem restauração viável, com consentimento.",C:"Substituir a fluoretação da água por programa exclusivamente tópico, por precaução quanto à fluorose.",D:"Manter dentifrício em casa; verniz mensal nos de maior risco; DFP 38% semestral em todos os pré-escolares e enxaguatório NaF 0,2% a partir dos 5 anos."},c:"B",
+ex:`A conduta correta usa dentifrício <b>1.000–1.500 ppm</b> (quantidade grão de arroz até 3 anos, ervilha após), verniz 2×/ano nos de maior risco e DFP 38% para lesões cavitadas não restauráveis.<div class="why">500 ppm é subterapêutico (A); não se substitui a fluoretação da água (C); e verniz mensal + DFP semestral em todos é excessivo/inadequado (D).</div>`},
+
+{n:45,bl:"odo",en:`<p>Segundo Maltz et al. (2016), relacione fatores da cárie aos exemplos:</p>
+<div class="sub"><span class="lab">Coluna 1</span><ol><li>Fatores determinantes.</li><li>Fatores modificadores.</li></ol></div>
+<div class="sub"><span class="lab">Coluna 2</span><ul class="rn"><li>Fluxo e composição da saliva, biofilme e substrato alimentar.</li><li>Presença de flúor no meio bucal.</li><li>Estrutura dental e tempo de exposição a episódios cariogênicos.</li><li>Condições socioeconômicas e acesso aos serviços.</li><li>Hábitos de higiene bucal e frequência do consumo de sacarose.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"1 – 2 – 1 – 2 – 2.",B:"1 – 1 – 2 – 1 – 1.",C:"2 – 2 – 1 – 2 – 2.",D:"2 – 1 – 2 – 1 – 1."},c:"A",
+ex:`Determinantes (1): saliva/biofilme/substrato e estrutura dental/tempo. Modificadores (2): flúor, condições socioeconômicas/acesso e hábitos de higiene/consumo. Sequência <b>1 – 2 – 1 – 2 – 2</b>.`},
+
+{n:46,bl:"odo",en:`<p>Paciente adulto com trauma dentário e luxação extrusiva de incisivo superior permanente, sem fratura radicular aparente. Segundo Estrela e Bueno (2023), qual a conduta inicial mais adequada?</p>`,
+o:{A:"Reposicionamento imediato do dente com contenção flexível por 2 semanas e monitoramento clínico e radiográfico.",B:"Extração imediata pelo risco de necrose e reabsorção, com reabilitação protética/implante.",C:"Aplicação de flúor tópico sem reposicionamento nem estabilização alveolar.",D:"Fixação prolongada (6 semanas) com contenção rígida, sem reposicionamento."},c:"A",
+ex:`Na luxação extrusiva: <b>reposicionar o dente e aplicar contenção flexível por cerca de 2 semanas</b>, com acompanhamento.<div class="why">Extração, apenas flúor ou contenção rígida prolongada aumentam risco de anquilose e comprometem a revascularização.</div>`},
+
+{n:47,bl:"odo",en:`<p>Sobre doenças pulpares e periapicais:</p>
+<div class="sub"><ol><li>A necrose pulpar sempre evolui para dor intensa, sendo indicador confiável sem necessidade de exames complementares.</li><li>O tratamento endodôntico minimamente invasivo preserva estrutura saudável e remove tecido necrosado/infectado, reduzindo risco de fraturas.</li><li>A inflamação pulpar crônica pode ter sinais discretos, mas desencadear alterações histopatológicas e expressão gênica que justificam intervenção precoce.</li></ol></div>
+<p class="ask">Quais estão corretas?</p>`,
+o:{A:"Apenas II.",B:"Apenas I e II.",C:"Apenas I e III.",D:"Apenas II e III."},c:"D",
+ex:`Corretas: <b>II e III</b>. A necrose pulpar <b>nem sempre</b> gera dor (pode ser assintomática), o que torna a I falsa.`},
+
+{n:48,bl:"odo",en:`<p>Paciente de 27 anos com lesão proximal profunda em molar inferior vital, próxima à polpa, sem envolvimento periodontal, boa higiene mas consumo frequente de açúcares. Segundo Baratieri e Monteiro Jr. (2024), qual a conduta restauradora mais adequada?</p>`,
+o:{A:"Remoção seletiva da dentina cariada preservando a dentina próxima à polpa, adesivo, isolamento absoluto com dique de borracha, resina composta em técnica incremental e matriz proximal; monitoramento clínico e radiográfico.",B:"Remoção completa até dentina desorganizada, adesivo total-etch, resina bulk-fill sem matriz ou isolamento; adaptação marginal em detrimento da proteção pulpar.",C:"RMGIC sobre toda a cavidade, sem remoção seletiva, apenas polimerização superficial.",D:"Resina flowable em camada única, sem isolamento nem adesivo, com contenção rígida."},c:"A",
+ex:`A conduta correta é a <b>remoção seletiva</b> (preservando dentina afetada próxima à polpa), isolamento absoluto, adesivo, matriz proximal e resina em incrementos, com acompanhamento.<div class="why">B, C e D dispensam isolamento/matriz ou proteção pulpar, comprometendo a restauração e a polpa.</div>`},
+
+{n:49,bl:"odo",en:`<p>Paciente de 55 anos com ardência, placas esbranquiçadas, boca seca e dor gengival; DM2 descompensado, uso recente de antibióticos de largo espectro e endodontia incompleta. Segundo Neville et al. (2009):</p>
+<div class="sub"><ol><li>A candidíase pseudomembranosa (Candida albicans) é a forma mais comum de infecção fúngica oral, associada a antibióticos, imunossupressão ou diabetes mal controlada.</li><li>Infecções endodônticas não tratadas podem evoluir para bacteremia e disseminação de microrganismos como Streptococcus viridans, com abscessos sistêmicos.</li><li>A xerostomia (diabéticos, anticolinérgicos) reduz a atividade antimicrobiana da saliva e favorece Candida e bactérias cariogênicas.</li></ol></div>
+<p class="ask">Quais estão corretas?</p>`,
+o:{A:"Apenas I e II.",B:"Apenas I e III.",C:"Apenas II e III.",D:"I, II e III."},c:"D",
+ex:`As três estão corretas: candidíase pseudomembranosa (I), disseminação de infecção endodôntica (II) e xerostomia favorecendo Candida/cárie (III).`},
+
+{n:50,bl:"odo",en:`<p>Paciente de 42 anos com HIV (carga viral indetectável, CD4 380 – imunossupressão leve) e anemia, precisa de exodontia de molar inferior com periodontite avançada. Usa tenofovir, lamivudina e dolutegravir e tem hipersensibilidade gástrica a AINEs. Segundo MS (2022) e Puricelli e Corsetti (2023), qual a conduta mais adequada?</p>`,
+o:{A:"Articaína 4% sem vasoconstritor para evitar interação com antirretrovirais, com antibioticoprofilaxia devido ao estado imunológico.",B:"Bloqueio do nervo alveolar inferior com lidocaína 2% + epinefrina 1:100.000, respeitando dose máxima, sem antibioticoprofilaxia de rotina, com analgesia preferencial por paracetamol.",C:"Anestesia tópica seguida de exodontia imediata, sem bloqueio nervoso ou cuidados adicionais.",D:"Prilocaína + felipressina, por ser preferida em HIV e eliminar risco cardiovascular."},c:"B",
+ex:`A conduta correta: <b>bloqueio do NAI com lidocaína 2% + epinefrina 1:100.000</b>, sem antibioticoprofilaxia de rotina (HIV controlado, CD4 380) e analgesia com <b>paracetamol</b> (pela intolerância a AINE).<div class="why">A, C e D partem de justificativas farmacológicas incorretas.</div>`},
+
+{n:51,bl:"odo",en:`<p>Sobre seleção de anestésico local e vasoconstritor (Puricelli e Corsetti, 2023; Puricelli, 2013):</p>`,
+o:{A:"A lidocaína com vasoconstritor 1:50.000 é recomendada em cardiopatas por permitir maior controle hemodinâmico.",B:"A mepivacaína, por ter menor ação vasodilatadora intrínseca, pode ser usada sem vasoconstritor em procedimentos curtos, sendo alternativa a quem não tolera adrenalina.",C:"A articaína é contraindicada em bloqueios do nervo alveolar inferior por potencial neurotóxico aumentado.",D:"A felipressina tem afinidade seletiva por receptores alfa-adrenérgicos, sendo mais eficaz que a adrenalina em tecidos moles."},c:"B",
+ex:`A <b>mepivacaína</b> tem menor ação vasodilatadora e pode ser usada sem vasoconstritor em procedimentos curtos.<div class="why">1:50.000 não é indicado a cardiopatas (A); a articaína não é contraindicada no NAI (C); a felipressina age em receptores V1 (vasopressina), não alfa-adrenérgicos (D).</div>`},
+
+{n:52,bl:"odo",en:`<p>Sobre interpretação radiográfica odontológica, julgue V ou F:</p>
+<div class="sub"><ul class="rn"><li>Lesões periapicais inflamatórias iniciam-se como áreas radiolúcidas mal delimitadas, podendo evoluir para imagens definidas com halo esclerótico.</li><li>A corticalização óssea ao redor de cistos auxilia a diferenciação de lesões malignas, que tendem a margens irregulares e mal definidas.</li><li>A reabsorção radicular externa inflamatória mostra continuidade entre lâmina dura e lesão radiolúcida; a reabsorção interna preserva os contornos externos da raiz.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"V – V – V.",B:"F – V – V.",C:"V – F – F.",D:"F – F – F."},c:"A",
+ex:`As três estão corretas: lesões periapicais inflamatórias, corticalização de cistos como sinal de benignidade e os padrões de reabsorção externa/interna. Gabarito <b>V – V – V</b>.`},
+
+{n:53,bl:"odo",en:`<p>Sobre dor orofacial (Okeson, 2008; Neville, 2009):</p>
+<div class="sub"><ol><li>A dor odontogênica (abscesso periapical agudo) é contínua, pulsátil e localizada, diferindo da miofascial (difusa/referida); porém, abscessos podem irradiar e inflamações crônicas gerar dor intermitente não pulsátil, confundindo o diagnóstico.</li><li>O carcinoma espinocelular in situ costuma manifestar-se por dor semelhante a odontalgia pulpar quando há infiltração neural periférica.</li><li>Na DTM articular, a dor é predominantemente pré-auricular, irradia para região temporal/ouvido, piora com movimentos e cursa com estalidos ou limitação de abertura.</li></ol></div>
+<p class="ask">Quais estão corretas?</p>`,
+o:{A:"Apenas II.",B:"Apenas III.",C:"Apenas I e III.",D:"Apenas II e III."},c:"C",
+ex:`Corretas: <b>I</b> (dor odontogênica × miofascial) e <b>III</b> (DTM articular).<div class="why">Carcinoma <b>in situ</b>, por definição, não invade nem infiltra nervos profundos — o que torna a II falsa.</div>`},
+
+{n:54,bl:"odo",en:`<p>Sobre antissépticos bucais:</p>
+<div class="sub"><ol><li>Clorexidina 0,12% é eficaz na redução do biofilme em gengivite/mucosite, mas seu uso deve ser monitorado em imunossuprimidos (risco de irritação, ulceração e infecções oportunistas).</li><li>Bochechos com álcool têm baixa eficácia sobre o biofilme e causam irritação, sendo restritos em pediátricos, gestantes e mucosite.</li><li>Triclosan é coadjuvante na redução de placa/gengivite, não substitui a higiene mecânica e não é primeira escolha em mucosa fragilizada.</li><li>Peróxido de hidrogênio 1–3% serve para clareamento/biofilme em mucosa saudável, mas o uso frequente em mucosite/ulceração agrava irritação e retarda a cicatrização.</li></ol></div>`,
+o:{A:"Apenas I e II estão corretas, com indicações seguras para biofilme em oncológicos.",B:"Apenas III e IV estão corretas, pois clorexidina e álcool têm restrições absolutas em mucosite e pediátricos.",C:"Apenas I, II e IV estão corretas, por serem métodos seguros para uso contínuo em imunossuprimidos.",D:"Todas estão corretas, mas apenas I e III têm indicações clínicas seguras em pacientes oncológicos."},c:"D",
+ex:`As quatro assertivas estão corretas. Entre elas, <b>clorexidina (I)</b> e <b>triclosan (III)</b> são as opções de uso mais seguro em oncológicos, enquanto álcool (II) e peróxido (IV) irritam a mucosa fragilizada. Por isso a alternativa correta é a <b>D</b>.`},
+
+{n:55,bl:"odo",en:`<p>Sobre tratamento endodôntico, anatomia radicular complexa e materiais intracanais (Almeida e Ferreira, 2022; Estrela e Bueno, 2023; Passos et al., 2022), assinale a <b>INCORRETA</b>.</p>`,
+o:{A:"Limas manuais/rotatórias são essenciais, mas não eliminam toda a microbiota; irrigantes (hipoclorito, EDTA) e tempo de instrumentação são determinantes na desinfecção.",B:"O hidróxido de cálcio, como medicação intracanal temporária, induz barreira mineral, controla infecção e dessensibiliza, devendo ser combinado com irrigação química.",C:"Dor persistente após estímulo térmico intenso indica pulpite irreversível; dor breve e transitória sugere pulpite reversível.",D:"Radiografias periapicais digitais isoladas permitem identificar todos os canais acessórios e reabsorções, dispensando exames tridimensionais."},c:"D",
+ex:`A incorreta é a <b>D</b>: radiografias 2D <b>não</b> identificam todos os canais acessórios nem todas as reabsorções — não dispensam exames tridimensionais (CBCT).<div class="why">A, B e C são afirmações verdadeiras.</div>`},
+
+{n:56,bl:"odo",en:`<p>Sobre manifestações bucais de condições infecciosas, reacionais e neoplásicas:</p>
+<div class="sub"><ol><li>O granuloma piogênico é lesão inflamatória reacional (trauma crônico/hormonal); sua regressão espontânea é improvável, sendo a excisão sempre mandatória para evitar recidivas.</li><li>A candidíase eritematosa pode simular lesões potencialmente malignas (leucoplasia), mas curso clínico e resposta a antifúngicos permitem diferenciação; a ausência de dor não exclui candidíase.</li><li>O carcinoma espinocelular em assoalho bucal tende a padrão radiolúcido irregular nas fases iniciais de invasão óssea; áreas radiopacas são mais compatíveis com metástases ou osteomielite crônica.</li></ol></div>
+<p class="ask">Quais estão corretas?</p>`,
+o:{A:"Apenas I e II.",B:"Apenas I e III.",C:"Apenas II e III.",D:"I, II e III."},c:"C",
+ex:`Corretas: <b>II e III</b>. A excisão do granuloma piogênico <b>não</b> é "sempre mandatória" — ele pode regredir (ex.: granuloma gravídico), o que torna a I falsa.`},
+
+{n:57,bl:"odo",en:`<p>Sobre conduta em pacientes usando bisfosfonatos ou anticorpos monoclonais, assinale a correta.</p>`,
+o:{A:"A suspensão temporária da terapia antirreabsortiva/antiangiogênica é comprovadamente eficaz, com consenso sobre o período ideal de interrupção.",B:"Exodontias podem ser feitas com segurança por técnicas convencionais, mesmo com exposição prolongada ao fármaco ou comorbidades.",C:"A gravidade oncológica, o potencial de progressão e a susceptibilidade individual sempre devem ser analisados; o risco-benefício individual é preponderante.",D:"O risco de MRONJ é equivalente entre bisfosfonatos orais para osteoporose e terapias IV de alta dose para câncer."},c:"C",
+ex:`A conduta correta prioriza o <b>risco-benefício individual</b> (gravidade oncológica, progressão e susceptibilidade).<div class="why">Não há consenso sobre "drug holiday" (A); exodontia não é isenta de risco (B); e o risco de MRONJ é bem <b>maior</b> com terapia IV de alta dose (D).</div>`},
+
+{n:58,bl:"odo",en:`<p>Segundo Paim e Almeida-Filho (2023) e Pereira (2013), sobre intervenções para reduzir cárie em comunidade de alta vulnerabilidade, marque C (correta) ou I (incorreta):</p>
+<div class="sub"><ul class="rn"><li>Programa clínico intensivo (adequação do meio, restaurações, exodontias, selantes) associado a políticas públicas de promoção.</li><li>Campanhas nacionais por meios digitais sobre educação e hábitos para grupos de risco.</li><li>Intervenções intersetoriais locais com escolas, comércio, segurança pública e conselhos de saúde, garantindo continuidade.</li><li>Subsídio direto para higiene bucal a todas as famílias, dependendo dos determinantes biológicos.</li></ul></div>
+<p class="ask">Ordem correta:</p>`,
+o:{A:"C – C – I – I.",B:"I – C – I – C.",C:"I – I – C – C.",D:"C – I – C – I."},c:"D",
+ex:`Coerentes (C): programa clínico + política de promoção (1ª) e ações intersetoriais locais (3ª). Incoerentes (I): campanha nacional digital para grupo vulnerável (2ª) e subsídio universal atrelado a determinantes "biológicos" (4ª). Sequência <b>C – I – C – I</b>.`},
+
+{n:59,bl:"odo",en:`<p>Analise as asserções:</p>
+<div class="sub"><ol><li>A avaliação contínua de indicadores, cobertura e determinantes sociais é crucial para orientar intervenções em saúde bucal, priorizar vulnerabilidade e alocar recursos.</li></ol><p style="margin:8px 0;text-align:center;font-weight:700;color:var(--ink)">PORQUE</p><ol start="2"><li>A ausência de monitoramento sistemático limita avaliar a efetividade das ações preventivas, reduzindo impacto sobre a cárie e perpetuando desigualdades.</li></ol></div>`,
+o:{A:"As asserções I e II são verdadeiras, e a II é uma justificativa da I.",B:"As asserções I e II são verdadeiras, mas a II não justifica a I.",C:"A asserção I é verdadeira, e a II é falsa.",D:"A asserção I é falsa, e a II é verdadeira."},c:"A",
+ex:`Ambas são verdadeiras e a II <b>justifica</b> a I: a importância do monitoramento (I) decorre justamente de que sua ausência limita a avaliação e perpetua desigualdades (II).`},
+
+{n:60,bl:"odo",en:`<p>Sobre os princípios e estratégias da PNH, assinale a correta.</p>`,
+o:{A:"Prioriza a padronização de protocolos e a hierarquização rígida de fluxos, reduzindo a autonomia das equipes.",B:"Tem foco restrito à atenção hospitalar de alta complexidade, sem diretrizes para a atenção primária.",C:"Integra dimensões técnicas, éticas e relacionais do cuidado, promovendo acolhimento, responsabilização compartilhada e participação social.",D:"Incentiva a contenção de custos, usando métricas financeiras como principal critério de qualidade."},c:"C",
+ex:`A PNH <b>integra dimensões técnicas, éticas e relacionais</b>, com acolhimento, corresponsabilização e participação social.<div class="why">A, B e D contrariam a Política (rigidez, foco hospitalar e métrica financeira como critério).</div>`}
+];
+
+// ---------------- App ----------------
+const KEY="prova_odo_fdt2025_v1";
+let store={ans:{},done:{},flag:{}};
+try{const s=localStorage.getItem(KEY);if(s)store=Object.assign(store,JSON.parse(s));}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(store));}catch(e){}}
+
+let filter="all", idx=0, view=[];
+function computeView(){
+  view=Q.filter(q=>{
+    if(filter==="all")return true;
+    if(filter==="sus")return q.bl==="sus";
+    if(filter==="odo")return q.bl==="odo";
+    if(filter==="todo")return !store.done[q.n];
+    if(filter==="wrong")return store.done[q.n]&&store.ans[q.n]!==q.c;
+    if(filter==="flag")return store.flag[q.n];
+    return true;
+  });
+  if(view.length===0)view=Q.slice();
+  if(idx>=view.length)idx=view.length-1;
+  if(idx<0)idx=0;
+}
+const stage=document.getElementById("stage");
+
+function render(){
+  computeView();
+  updateScore();
+  const q=view[idx];
+  if(!q){stage.innerHTML="";return;}
+  const answered=!!store.done[q.n];
+  const chosen=store.ans[q.n];
+  const tag=q.bl==="sus"?'<span class="qtag">Humanização · SUS</span>':'<span class="qtag gold">Conhec. específicos</span>';
+  let opts="";
+  ["A","B","C","D"].forEach(k=>{
+    if(!q.o[k])return;
+    let state="";
+    if(answered){
+      if(k===q.c)state="ok";
+      else if(k===chosen)state="no";
+    }else if(chosen===k)state="sel";
+    let mark="";
+    if(answered&&k===q.c)mark='<span class="mark">correta</span>';
+    else if(answered&&k===chosen)mark='<span class="mark">sua resposta</span>';
+    opts+=`<button class="opt" data-k="${k}" ${state?`data-state="${state}"`:""} ${answered?"disabled":""}>
+      <span class="key">${k}</span><span class="txt">${q.o[k]}</span>${mark}</button>`;
+  });
+  let expl="";
+  if(answered){
+    const win=chosen===q.c;
+    expl=`<div class="expl ${win?"win":"lose"}">
+      <div class="verdict">${win?"✓ Você acertou":"✗ Não foi dessa vez"}<span class="gab">Gabarito: ${q.c}</span></div>
+      <div class="body">${q.ex}</div></div>`;
+  }
+  stage.innerHTML=`<div class="card">
+    <div class="qhead"><span class="qnum">Q ${String(q.n).padStart(2,"0")}</span>${tag}
+      <button class="flag" data-flag ${store.flag[q.n]?'aria-pressed="true"':'aria-pressed="false"'} aria-label="Marcar">★</button></div>
+    <div class="enun">${q.en}</div>
+    <div class="opts">${opts}</div>
+    ${answered?"":'<button class="confirm" id="confirmBtn" disabled>Confirmar resposta</button>'}
+    ${expl}
+  </div>`;
+  document.getElementById("prev").disabled=idx===0;
+  document.getElementById("next").disabled=idx===view.length-1;
+
+  if(!answered){
+    stage.querySelectorAll(".opt").forEach(b=>b.addEventListener("click",()=>{
+      store.ans[q.n]=b.dataset.k;save();
+      stage.querySelectorAll(".opt").forEach(x=>x.removeAttribute("data-state"));
+      b.setAttribute("data-state","sel");
+      const cb=document.getElementById("confirmBtn");cb.disabled=false;
+    }));
+    const cb=document.getElementById("confirmBtn");
+    if(chosen)cb.disabled=false;
+    cb.addEventListener("click",()=>{
+      if(!store.ans[q.n])return;
+      store.done[q.n]=true;save();render();
+      stage.scrollIntoView({behavior:"smooth",block:"start"});
+    });
+  }
+  const fb=stage.querySelector("[data-flag]");
+  fb.addEventListener("click",()=>{
+    store.flag[q.n]=!store.flag[q.n];save();
+    fb.setAttribute("aria-pressed",store.flag[q.n]?"true":"false");
+  });
+}
+
+function updateScore(){
+  const total=Q.length;
+  const done=Object.keys(store.done).filter(n=>store.done[n]).length;
+  const correct=Q.filter(q=>store.done[q.n]&&store.ans[q.n]===q.c).length;
+  document.getElementById("scoreN").textContent=correct+"/"+done;
+  document.getElementById("scorePct").textContent=done?Math.round(correct/done*100)+"% acerto":"0 respondidas";
+  document.getElementById("bar").style.width=(done/total*100)+"%";
+}
+
+// filters
+document.getElementById("filters").addEventListener("click",e=>{
+  const b=e.target.closest(".chip");if(!b)return;
+  document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"));
+  b.setAttribute("aria-pressed","true");filter=b.dataset.f;idx=0;render();
+});
+document.getElementById("prev").addEventListener("click",()=>{if(idx>0){idx--;render();window.scrollTo({top:0,behavior:"smooth"});}});
+document.getElementById("next").addEventListener("click",()=>{if(idx<view.length-1){idx++;render();window.scrollTo({top:0,behavior:"smooth"});}});
+
+// grid sheet
+const overlay=document.getElementById("overlay");
+document.getElementById("gridBtn").addEventListener("click",openGrid);
+document.getElementById("closeSheet").addEventListener("click",()=>overlay.classList.remove("show"));
+overlay.addEventListener("click",e=>{if(e.target===overlay)overlay.classList.remove("show");});
+function openGrid(){
+  const g=document.getElementById("grid");g.innerHTML="";
+  const sections=[["SUS · Humanização (1–20)","sus"],["Odontologia (21–60)","odo"]];
+  sections.forEach(([label,bl])=>{
+    const lab=document.createElement("div");lab.className="sec-label";lab.textContent=label;g.appendChild(lab);
+    Q.filter(q=>q.bl===bl).forEach(q=>{
+      const c=document.createElement("button");c.className="cell";
+      c.textContent=q.n;
+      if(store.done[q.n])c.classList.add(store.ans[q.n]===q.c?"ok":"no");
+      if(view[idx]&&view[idx].n===q.n)c.classList.add("cur");
+      if(store.flag[q.n]){const d=document.createElement("span");d.className="dot";d.textContent="★";c.appendChild(d);}
+      c.addEventListener("click",()=>{
+        filter="all";document.querySelectorAll(".chip").forEach(ch=>ch.setAttribute("aria-pressed",ch.dataset.f==="all"?"true":"false"));
+        computeView();idx=view.findIndex(v=>v.n===q.n);
+        overlay.classList.remove("show");render();window.scrollTo({top:0,behavior:"smooth"});
+      });
+      g.appendChild(c);
+    });
+  });
+  overlay.classList.add("show");
+}
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  if(confirm("Apagar todas as respostas e marcações?")){
+    store={ans:{},done:{},flag:{}};save();overlay.classList.remove("show");idx=0;render();
+  }
+});
+
+// theme
+const tb=document.getElementById("themeBtn");
+tb.addEventListener("click",()=>{
+  const cur=document.documentElement.getAttribute("data-theme");
+  const next=cur==="dark"?"light":(cur==="light"?"dark":"dark");
+  document.documentElement.setAttribute("data-theme",next);
+  try{localStorage.setItem(KEY+"_theme",next);}catch(e){}
+});
+try{const t=localStorage.getItem(KEY+"_theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}
+
+render();
+</script>
+</body>
+</html>

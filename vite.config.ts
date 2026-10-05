@@ -28,6 +28,15 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,webmanifest}'],
         navigateFallback: '/index.html',
+        // PDFs das provas abrem direto (não devem cair na tela do app); ficam em cache após a 1ª abertura
+        navigateFallbackDenylist: [/^\/provas\//],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/provas/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'provas-pdf', expiration: { maxEntries: 10 } }
+          }
+        ],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
       }
     })

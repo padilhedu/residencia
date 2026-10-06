@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useRoute, type Tab } from './lib/router'
 import { useStudy } from './lib/study'
-import { useSession } from './lib/store'
+import { store, useSession, valueOf } from './lib/store'
 import { useSyncStatus } from './lib/sync'
 import { useAuth } from './lib/supabase'
 import { Icon, ToastHost } from './components/ui'
@@ -12,7 +12,10 @@ import { Revisao } from './pages/Revisao'
 import { Conteudo } from './pages/Conteudo'
 import { Ajustes } from './pages/Ajustes'
 import { Sessao } from './pages/Sessao'
+import { Gabaritos } from './pages/Gabaritos'
+import { Flashcards } from './pages/Flashcards'
 import { TOPIC_MAP } from './data/topics'
+import { buildForecast, sameForecast, useFlash, type Forecast } from './lib/decks'
 
 const NAV: { tab: Tab; label: string; icon: () => JSX.Element }[] = [
   { tab: 'hoje', label: 'Hoje', icon: Icon.home },
@@ -29,7 +32,9 @@ const TITLES: Record<Tab, string> = {
   revisao: 'Revisão e desempenho',
   conteudo: 'Conteúdo programático',
   ajustes: 'Ajustes',
-  sessao: 'Questões'
+  sessao: 'Questões',
+  gabaritos: 'Gabaritos oficiais',
+  cards: 'Flashcards'
 }
 
 export function App() {
@@ -38,6 +43,17 @@ export function App() {
   const session = useSession()
   const sync = useSyncStatus()
   const { user } = useAuth()
+  const flash = useFlash(study)
+
+  // Previsão de revisões para o lembrete diário (só com conta; o servidor decide quando avisar)
+  useEffect(() => {
+    if (!user) return
+    const t = setTimeout(() => {
+      const f = buildForecast(study, flash)
+      if (!sameForecast(valueOf<Forecast>(study.d, 'forecast', 'due'), f)) store.setState('forecast', 'due', f)
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [user, study, flash])
 
   useEffect(() => {
     const t = study.settings.theme
@@ -79,6 +95,8 @@ export function App() {
         {route.tab === 'conteudo' && <Conteudo topicId={route.param} />}
         {route.tab === 'ajustes' && <Ajustes />}
         {route.tab === 'sessao' && <Sessao />}
+        {route.tab === 'gabaritos' && <Gabaritos />}
+        {route.tab === 'cards' && <Flashcards key={route.param ?? ''} deckParam={route.param} />}
       </main>
 
       <nav className="tabbar" aria-label="Navegação principal">

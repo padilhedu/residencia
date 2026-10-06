@@ -10,6 +10,7 @@ import { valueOf } from '../lib/store'
 import { Bar, accTone, pct } from '../components/ui'
 import { addDays, daysUntil, fmtLong, fmtRange, todayISO, toISO } from '../lib/dates'
 import { InstallHint } from '../components/InstallHint'
+import { useFlash } from '../lib/decks'
 
 export function Hoje() {
   const { weeks, done, study } = usePlan()
@@ -32,6 +33,7 @@ export function Hoje() {
   const fdtLeft = daysUntil(settings.fdtDate)
   const enareLeft = daysUntil(settings.enareDate)
   const pendingItems = week ? week.items.filter((i) => !done.has(i.id)) : []
+  const flash = useFlash(study)
 
   return (
     <>
@@ -76,6 +78,17 @@ export function Hoje() {
           <button className="btn primary" disabled={!due.length} onClick={() => startDueReview(study)}>Revisar agora</button>
           <button className="btn" onClick={() => startReinforcement(study)}>Reforço em temas fracos</button>
         </div>
+      </div>
+
+      <div className="card">
+        <div className="row between">
+          <h2 style={{ margin: 0 }}>Flashcards</h2>
+          <span className={`tag ${flash.today ? 'gold' : 'ok'}`}>{flash.today ? `${flash.today} para hoje` : 'em dia'}</span>
+        </div>
+        <p className="muted" style={{ margin: '6px 0 10px' }}>
+          {flash.decks.erros.length ? `${flash.decks.erros.length} cartões dos seus erros` : 'Os cartões dos seus erros aparecem aqui'} + {flash.decks.lei.length} de lei seca. 5 minutos no ônibus já valem.
+        </p>
+        <button className="btn" onClick={() => go('cards')}>Abrir flashcards</button>
       </div>
 
       <div className="card">

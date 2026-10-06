@@ -48,7 +48,7 @@ function PracticeRunner({ s, study }: { s: Session; study: Study }) {
   const correct = s.qids.filter((id) => {
     const a = s.answers[id]
     const qq = QMAP.get(id)
-    return a && qq && a.sel === answerOf(qq, study.overrides) && !a.guessed
+    return a && qq && (study.annulled.has(id) || (a.sel === answerOf(qq, study.overrides) && !a.guessed))
   }).length
   const finished = answered === s.qids.length && s.idx >= s.qids.length - 1 && !!done
 
@@ -88,7 +88,7 @@ function PracticeRunner({ s, study }: { s: Session; study: Study }) {
         )}
       </div>
 
-      {done && <Explanation key={q.id} q={q} sel={done.sel} guessed={done.guessed} answer={answer} defaultAnswer={q.answer} />}
+      {done && <Explanation key={q.id} q={q} sel={done.sel} guessed={done.guessed} answer={answer} defaultAnswer={q.answer} official={study.official.get(q.id)} />}
 
       <div className="row" style={{ marginTop: 4 }}>
         <button className="btn" disabled={s.idx === 0} onClick={() => move(-1)}>‹ Anterior</button>
@@ -114,7 +114,7 @@ function PracticeRunner({ s, study }: { s: Session; study: Study }) {
                 const wrong = s.qids.filter((id) => {
                   const a = s.answers[id]
                   const qq = QMAP.get(id)
-                  return a && qq && (a.sel !== answerOf(qq, study.overrides) || a.guessed)
+                  return a && qq && !study.annulled.has(id) && (a.sel !== answerOf(qq, study.overrides) || a.guessed)
                 })
                 if (wrong.length) startSession({ mode: 'treino', title: 'Refazer erros da sessão', qids: wrong })
                 else toast('Nenhum erro para refazer!')
@@ -147,22 +147,32 @@ function SimRunner({ s, study }: { s: Session; study: Study }) {
   const limit = (s.durationMin ?? 0) * 60_000
   const remaining = limit - elapsed
   const answered = Object.keys(s.answers).length
+  // tempo em cada questão: acumula ao sair dela (vale também ao finalizar)
+  const enteredAt = useRef(Date.now())
+  useEffect(() => {
+    enteredAt.current = Date.now()
+  }, [s.idx])
+  const withSpent = (base: Session): Session => {
+    const ms = Math.min(Date.now() - enteredAt.current, 15 * 60_000)
+    enteredAt.current = Date.now()
+    return { ...base, spent: { ...(base.spent ?? {}), [qid]: (base.spent?.[qid] ?? 0) + ms } }
+  }
 
   useEffect(() => {
     if (limit && remaining <= 0) {
       toast('Tempo esgotado — simulado finalizado')
-      finishSimulado(s, study.overrides)
+      finishSimulado(withSpent(s), study.overrides)
     }
   }, [limit, remaining <= 0])
 
   if (!q) return null
   const pick = (l: Letter) => store.setSession({ ...s, answers: { ...s.answers, [qid]: { sel: l, guessed: cur?.guessed ?? false } } })
   const setGuess = (g: boolean) => cur && store.setSession({ ...s, answers: { ...s.answers, [qid]: { ...cur, guessed: g } } })
-  const goTo = (i: number) => store.setSession({ ...s, idx: Math.max(0, Math.min(s.qids.length - 1, i)) })
+  const goTo = (i: number) => store.setSession(withSpent({ ...s, idx: Math.max(0, Math.min(s.qids.length - 1, i)) }))
   const finish = () => {
     const missing = s.qids.length - answered
     if (!confirm(missing ? `Ainda faltam ${missing} questões. Finalizar mesmo assim?` : 'Finalizar e ver o resultado?')) return
-    finishSimulado(s, study.overrides)
+    finishSimulado(withSpent(s), study.overrides)
   }
 
   return (
@@ -221,9 +231,11 @@ function SimResult({ s, study }: { s: Session; study: Study }) {
         const q = QMAP.get(id)!
         const a = s.answers[id]
         const ans = answerOf(q, study.overrides)
-        return { q, a, ok: !!a && a.sel === ans && !a.guessed, ans }
+        const annulled = study.annulled.has(id)
+        // Como na prova: questão anulada vale ponto para todos
+        return { q, a, ok: annulled || (!!a && a.sel === ans && !a.guessed), ans, annulled }
       }),
-    [s, study.overrides]
+    [s, study.overrides, study.annulled]
   )
   const total = rows.length
   const ok = rows.filter((r) => r.ok).length
@@ -250,7 +262,7 @@ function SimResult({ s, study }: { s: Session; study: Study }) {
           <QuestionStem q={r.q} />
           <Options q={r.q} sel={r.a?.sel} reveal answer={r.ans} />
         </div>
-        <Explanation key={r.q.id} q={r.q} sel={r.a?.sel} guessed={r.a?.guessed} answer={r.ans} defaultAnswer={r.q.answer} />
+        <Explanation key={r.q.id} q={r.q} sel={r.a?.sel} guessed={r.a?.guessed} answer={r.ans} defaultAnswer={r.q.answer} official={study.official.get(r.q.id)} />
         <div className="row">
           <button className="btn" disabled={view === 0} onClick={() => setView(view - 1)}>‹ Anterior</button>
           <span className="spacer" />
@@ -290,7 +302,7 @@ function SimResult({ s, study }: { s: Session; study: Study }) {
       <div className="row wrap">
         <button className="btn primary" onClick={exit}>Fechar</button>
         <button className="btn" onClick={() => {
-          const wrong = rows.filter((r) => !r.ok).map((r) => r.q.id)
+          const wrong = rows.filter((r) => !r.ok && !r.annulled).map((r) => r.q.id)
           if (wrong.length) startSession({ mode: 'treino', title: 'Refazer erros do simulado', qids: wrong })
         }}>Refazer erros em treino</button>
       </div>

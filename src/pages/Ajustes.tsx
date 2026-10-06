@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase, useAuth } from '../lib/supabase'
 import { deleteRemoteAttempts, syncNow, useSyncStatus } from '../lib/sync'
 import { DEFAULT_SETTINGS, pendingCount, store, useData, type Data } from '../lib/store'
@@ -6,6 +6,7 @@ import { useStudy } from '../lib/study'
 import type { Settings } from '../lib/types'
 import { EXAMS } from '../data/exams'
 import { toast } from '../components/ui'
+import { disableReminders, enableReminders, isIOS, isStandalone, pushSupported, sendTestReminder, serverReminder, updateReminderHour } from '../lib/push'
 
 const STATUS_TXT = {
   local: 'Somente neste aparelho',
@@ -97,6 +98,88 @@ function Account() {
   )
 }
 
+function Reminders() {
+  const { user } = useAuth()
+  const [hour, setHour] = useState<number | null>(null)
+  const [pick, setPick] = useState(19)
+  const [busy, setBusy] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    serverReminder()
+      .then((r) => {
+        if (!alive) return
+        setHour(r?.hour ?? null)
+        if (r) setPick(r.hour)
+      })
+      .catch(() => undefined)
+      .finally(() => alive && setLoaded(true))
+    return () => {
+      alive = false
+    }
+  }, [user])
+
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true)
+    try {
+      await fn()
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const iosNeedsInstall = isIOS() && !isStandalone()
+  return (
+    <div className="card">
+      <h2>Lembrete diário no celular</h2>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Uma notificação por dia, no horário escolhido, <b>só quando houver revisão pendente</b> (questões da revisão espaçada e flashcards).
+      </p>
+      {!supabase || !user ? (
+        <p className="faint" style={{ margin: 0 }}>Entre na sua conta (acima) para ativar: o aviso sai do servidor mesmo com o app fechado.</p>
+      ) : iosNeedsInstall ? (
+        <div className="alert">No iPhone/iPad, primeiro instale o app: Safari → Compartilhar → “Adicionar à Tela de Início”. Depois abra pelo ícone e volte aqui (iOS 16.4 ou mais recente).</div>
+      ) : !pushSupported() ? (
+        <p className="faint" style={{ margin: 0 }}>Este navegador não suporta notificações push. No Android use o Chrome; no computador, Chrome, Edge ou Firefox.</p>
+      ) : !loaded ? (
+        <p className="faint" style={{ margin: 0 }}>Verificando…</p>
+      ) : (
+        <>
+          <label className="field">
+            <span>Horário do lembrete</span>
+            <select
+              value={pick}
+              disabled={busy}
+              onChange={(e) => {
+                const h = Number(e.target.value)
+                setPick(h)
+                if (hour !== null) run(async () => { await updateReminderHour(h); setHour(h); toast(`Lembrete às ${h}h`) })
+              }}
+            >
+              {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}
+            </select>
+          </label>
+          {hour === null ? (
+            <button className="btn primary" disabled={busy} onClick={() => run(async () => { await enableReminders(pick); setHour(pick); toast('Lembretes ativados neste aparelho') })}>
+              Ativar lembretes neste aparelho
+            </button>
+          ) : (
+            <div className="row wrap">
+              <span className="tag ok">ativo às {String(hour).padStart(2, '0')}:00</span>
+              <button className="btn small" disabled={busy} onClick={() => run(async () => { const n = await sendTestReminder(); toast(n ? 'Notificação de teste enviada' : 'Nenhum aparelho inscrito') })}>Enviar teste</button>
+              <button className="btn small ghost" disabled={busy} onClick={() => run(async () => { await disableReminders(); setHour(null); toast('Lembretes desativados') })}>Desativar</button>
+            </div>
+          )}
+          <p className="faint" style={{ marginBottom: 0 }}>Ative em cada aparelho onde quiser receber. Se o celular estiver em modo economia de bateria, o aviso pode atrasar alguns minutos.</p>
+        </>
+      )}
+    </div>
+  )
+}
+
 export function Ajustes() {
   const study = useStudy()
   const s = study.settings
@@ -134,6 +217,7 @@ export function Ajustes() {
   return (
     <>
       <Account />
+      <Reminders />
 
       <div className="card">
         <h2>Datas das provas</h2>
@@ -180,7 +264,7 @@ export function Ajustes() {
       <div className="card">
         <h2>Sobre os gabaritos</h2>
         <p className="muted" style={{ marginTop: 0 }}>
-          As resoluções são comentários de estudo, conferidos questão a questão, mas <b>não substituem o gabarito definitivo</b> das bancas. Questões com ⚠️ têm ponto controverso. Se o gabarito oficial divergir, use “O gabarito oficial é outro?” na própria questão.
+          As resoluções são comentários de estudo, conferidos questão a questão, mas <b>não substituem o gabarito definitivo</b> das bancas. Questões com ⚠️ têm ponto controverso. Os gabaritos definitivos já publicados (FDT 2023–2025) estão aplicados; veja <a href="#/gabaritos">gabaritos oficiais e divergências</a>. Para o ENARE, importe o definitivo quando a FGV publicar.
         </p>
         <ul className="muted" style={{ paddingLeft: 18 }}>
           {EXAMS.map((e) => (

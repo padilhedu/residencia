@@ -320,3 +320,33 @@ label.field > span { display: block; font-size: 12.5px; font-weight: 700; color:
 @media (min-width: 640px) {
   .grid2.wide-3 { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ── Gabarito oficial ── */
+.official { border-radius: 12px; padding: 10px 12px; font-size: 13.5px; margin-top: 12px; border: 1px solid var(--line); background: var(--surface-2); }
+.official .why { margin-top: 6px; color: var(--ink-soft); font-size: 13px; }
+.official.ok { background: var(--ok-bg); border-color: var(--ok-line); }
+.official.diverge { background: var(--warn-bg); border-color: transparent; color: var(--ink); }
+.official.annulled { background: var(--no-bg); border-color: var(--no-line); }
+.keygrid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; font-variant-numeric: tabular-nums; }
+.keygrid span { text-align: center; font-size: 11.5px; padding: 4px 0; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line-soft); }
+.keygrid span b { display: block; font-size: 13px; }
+.keygrid span.diff { background: var(--warn-bg); border-color: var(--gold); }
+.keygrid span.null { background: var(--no-bg); border-color: var(--no-line); }
+
+/* Flashcards */
+.flash-card { min-height: 200px; }
+.flash-face { font-size: 16.5px; line-height: 1.55; color: var(--ink); }
+.flash-face p { margin: 0 0 8px; }
+.flash-back { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.flash-back-text { line-height: 1.55; color: var(--ink); }
+.flash-back-text b, .flash-face b { color: var(--petrol); }
+.grade-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0; }
+.btn.grade { flex-direction: column; gap: 2px; padding: 10px 4px; font-size: 14px; }
+.btn.grade small { font-size: 11.5px; font-weight: 500; opacity: 0.8; }
+.btn.grade.no { color: var(--no); border-color: var(--no-line); background: var(--no-bg); }
+.btn.grade.gold { color: var(--gold); border-color: var(--gold); background: var(--gold-tint); }
+.btn.grade.ok { color: var(--ok); border-color: var(--ok-line); background: var(--ok-bg); }
+.flash-peek { border-bottom: 1px solid var(--line-soft); padding: 8px 0; }
+.flash-peek summary { cursor: pointer; font-weight: 600; }
+.flash-peek .flash-back-text { margin: 8px 0 4px; font-size: 14.5px; }
+.inline { display: inline; }

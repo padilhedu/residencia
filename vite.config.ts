@@ -27,6 +27,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,webmanifest}'],
+        // Lembrete diário: eventos push/notificationclick
+        importScripts: ['push-handler.js'],
         navigateFallback: '/index.html',
         // PDFs das provas abrem direto (não devem cair na tela do app); ficam em cache após a 1ª abertura
         navigateFallbackDenylist: [/^\/provas\//],

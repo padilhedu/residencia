@@ -39,18 +39,22 @@ export type Overrides = Record<string, Letter | undefined>
 
 export const effectiveAnswer = (q: Question, overrides: Overrides): Letter => overrides[q.id] ?? q.answer
 
-export function isRight(a: Attempt, q: Question | undefined, overrides: Overrides): boolean {
+/** Questões anuladas pela banca (gabarito oficial ou importado): não contam nas estatísticas nem entram na revisão */
+export type Annulled = Set<string>
+
+export function isRight(a: Attempt, q: Question | undefined, overrides: Overrides, annulled?: Annulled): boolean {
   if (!q) return a.correct && !a.guessed
+  if (annulled?.has(q.id)) return true
   return a.selected === effectiveAnswer(q, overrides) && !a.guessed
 }
 
 const byTime = (a: Attempt, b: Attempt) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)
 
-export function buildCards(attempts: Attempt[], qmap: Map<string, Question>, overrides: Overrides): Map<string, Card> {
+export function buildCards(attempts: Attempt[], qmap: Map<string, Question>, overrides: Overrides, annulled?: Annulled): Map<string, Card> {
   const cards = new Map<string, Card>()
   for (const a of [...attempts].sort(byTime)) {
     const q = qmap.get(a.qid)
-    if (!q) continue
+    if (!q || annulled?.has(q.id)) continue
     const ok = isRight(a, q, overrides)
     const t = Date.parse(a.at)
     const c = cards.get(a.qid)
@@ -70,11 +74,11 @@ export function buildCards(attempts: Attempt[], qmap: Map<string, Question>, ove
   return cards
 }
 
-export function topicStats(attempts: Attempt[], qmap: Map<string, Question>, overrides: Overrides): Map<string, TopicStat> {
+export function topicStats(attempts: Attempt[], qmap: Map<string, Question>, overrides: Overrides, annulled?: Annulled): Map<string, TopicStat> {
   const m = new Map<string, TopicStat & { qs: Set<string> }>()
   for (const a of attempts) {
     const q = qmap.get(a.qid)
-    if (!q) continue
+    if (!q || annulled?.has(q.id)) continue
     const s = m.get(q.topic) ?? { topic: q.topic, total: 0, correct: 0, acc: 0, seen: 0, qs: new Set<string>() }
     s.total++
     if (isRight(a, q, overrides)) s.correct++

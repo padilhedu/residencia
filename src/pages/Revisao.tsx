@@ -2,13 +2,22 @@ import { useMemo } from 'react'
 import { EXAMS } from '../data/exams'
 import { topicName } from '../data/topics'
 import { upcoming, weakTopics, MIN_ATTEMPTS_FOR_STATS, theoryInterval } from '../lib/srs'
-import { dailyCounts, firstTryAcc, startDueReview, startReinforcement, streak, useStudy } from '../lib/study'
+import { dailyCounts, firstTryAcc, startDueReview, startReinforcement, streak, timeByTopic, useStudy } from '../lib/study'
 import { go } from '../lib/router'
 import { valueOf } from '../lib/store'
 import { Bar, accTone, pct } from '../components/ui'
 import { addDays, daysUntil, fmtShort, mondayOf, todayISO, toISO, relDays } from '../lib/dates'
 
 const DOW = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom']
+/** Tempo disponível por questão na prova: ENARE 5 h / 100 = 3 min; FDT 4 h / 60 = 4 min */
+const PACE_ENARE = 3 * 60_000
+const PACE_FDT = 4 * 60_000
+
+export function fmtDur(ms: number): string {
+  const s = Math.round(ms / 1000)
+  if (s < 60) return `${s} s`
+  return `${Math.floor(s / 60)}min${String(s % 60).padStart(2, '0')}`
+}
 
 export function Revisao() {
   const study = useStudy()
@@ -27,9 +36,11 @@ export function Revisao() {
     for (const e of Object.values(d.state)) if (e.kind === 'errtype' && (e.value === 'C' || e.value === 'I' || e.value === 'D')) m[e.value]++
     return m
   }, [d.state])
-  const overall = firstTryAcc(d.attempts, () => true, study.overrides)
-  const sus = firstTryAcc(d.attempts, (q) => q.topic.startsWith('sus-'), study.overrides)
-  const odo = firstTryAcc(d.attempts, (q) => !q.topic.startsWith('sus-'), study.overrides)
+  const overall = firstTryAcc(d.attempts, () => true, study.overrides, study.annulled)
+  const sus = firstTryAcc(d.attempts, (q) => q.topic.startsWith('sus-'), study.overrides, study.annulled)
+  const odo = firstTryAcc(d.attempts, (q) => !q.topic.startsWith('sus-'), study.overrides, study.annulled)
+  const times = useMemo(() => timeByTopic(d.attempts), [d.attempts])
+  const maxTime = Math.max(PACE_ENARE * 1.5, ...times.byTopic.map((t) => t.avgMs))
   const today = todayISO()
 
   return (
@@ -66,6 +77,14 @@ export function Revisao() {
           </div>
         </div>
       </div>
+
+      <a className="card list-item" href="#/cards" style={{ textDecoration: 'none' }}>
+        <span className="t">
+          <b>Flashcards</b>
+          <span>Cartões automáticos dos seus erros + baralho de lei seca, com revisão espaçada própria</span>
+        </span>
+        <span aria-hidden>›</span>
+      </a>
 
       <div className="card">
         <div className="row between">
@@ -124,7 +143,7 @@ export function Revisao() {
       <div className="card">
         <h2>Por prova (1ª tentativa)</h2>
         {EXAMS.map((e) => {
-          const a = firstTryAcc(d.attempts, (q) => q.exam === e.id, study.overrides)
+          const a = firstTryAcc(d.attempts, (q) => q.exam === e.id, study.overrides, study.annulled)
           return (
             <div className="topic-row" key={e.id}>
               <div className="row between"><b>{e.name}</b><span className="faint num">{a.total ? `${a.ok}/${a.total} · ${pct(a.acc)}` : 'não iniciada'}</span></div>
@@ -132,6 +151,41 @@ export function Revisao() {
             </div>
           )
         })}
+      </div>
+
+      <div className="card">
+        <h2>Tempo médio por questão</h2>
+        {times.overall.n === 0 ? (
+          <p className="muted" style={{ margin: 0 }}>O app mede o tempo de cada resposta (treino, revisão e simulado). Resolva algumas questões para ver seu ritmo por tema.</p>
+        ) : (
+          <>
+            <div className="grid3" style={{ marginBottom: 10 }}>
+              <div className="kpi"><div className="big num">{fmtDur(times.overall.avgMs)}</div><div className="faint">média geral ({times.overall.n})</div></div>
+              <div className="kpi"><div className="big num">3min00</div><div className="faint">ritmo ENARE</div></div>
+              <div className="kpi"><div className="big num">4min00</div><div className="faint">ritmo FDT</div></div>
+            </div>
+            <p className="faint" style={{ marginTop: 0 }}>
+              Do tema mais lento para o mais rápido. Lento <i>e</i> com acerto baixo = falta conteúdo; lento com acerto alto = treinar velocidade; rápido com acerto baixo = desatenção. Tempos acima de 15 min (app aberto parado) ficam de fora.
+            </p>
+            {times.byTopic.map((t) => {
+              const st = stats.get(t.topic)
+              const tone = t.avgMs > PACE_FDT ? 'no' : t.avgMs > PACE_ENARE ? 'gold' : 'ok'
+              return (
+                <div className="topic-row" key={t.topic}>
+                  <div className="row between">
+                    <b>{topicName(t.topic)}</b>
+                    <span className={`tag ${tone}`}>{fmtDur(t.avgMs)}</span>
+                  </div>
+                  <div className={`bar ${tone === 'no' ? 'low' : tone === 'gold' ? 'mid' : 'high'}`}><i style={{ width: `${(t.avgMs / maxTime) * 100}%` }} /></div>
+                  <div className="faint num" style={{ marginTop: 4 }}>
+                    {t.n} {t.n === 1 ? 'resposta' : 'respostas'}{st && st.total >= MIN_ATTEMPTS_FOR_STATS ? ` · ${pct(st.acc)} de acerto` : ''}
+                    {t.avgMs > PACE_FDT ? ' · acima do ritmo das duas provas' : t.avgMs > PACE_ENARE ? ' · acima do ritmo do ENARE' : ''}
+                  </div>
+                </div>
+              )
+            })}
+          </>
+        )}
       </div>
 
       <div className="card">

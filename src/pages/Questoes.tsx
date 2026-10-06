@@ -57,7 +57,7 @@ export function Questoes({ topicParam }: { topicParam?: string }) {
       {EXAMS.map((e) => {
         const qs = QUESTIONS.filter((q) => q.exam === e.id)
         const seen = qs.filter((q) => study.cards.has(q.id)).length
-        const acc = firstTryAcc(study.d.attempts, (q) => q.exam === e.id, study.overrides)
+        const acc = firstTryAcc(study.d.attempts, (q) => q.exam === e.id, study.overrides, study.annulled)
         return (
           <div className="card" key={e.id}>
             <div className="row between">
@@ -79,6 +79,14 @@ export function Questoes({ topicParam }: { topicParam?: string }) {
           </div>
         )
       })}
+
+      <a className="card list-item" href="#/gabaritos" style={{ textDecoration: 'none' }}>
+        <span className="t">
+          <b>Gabaritos oficiais e divergências</b>
+          <span>Gabaritos definitivos das bancas, questões anuladas e onde a banca diverge da resolução de estudo</span>
+        </span>
+        <span aria-hidden>›</span>
+      </a>
 
       <div className="section-title">Montar sessão</div>
       <div className="card">

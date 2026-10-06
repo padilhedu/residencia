@@ -1,4 +1,5 @@
-import type { ExamId, Question } from '../lib/types'
+import type { ExamId, Letter, Question } from '../lib/types'
+import { OFFICIAL_MAP } from './official'
 import fdt2025 from './questions/fdt2025.json'
 import fdt2024 from './questions/fdt2024.json'
 import fdt2023 from './questions/fdt2023.json'
@@ -24,12 +25,29 @@ export const EXAMS: ExamMeta[] = [
 
 export const EXAM_MAP = new Map(EXAMS.map((e) => [e.id, e]))
 
+/** Sobrepõe o gabarito definitivo da banca à resolução de estudo */
+export function withOfficial(q: Question): Question {
+  const key = OFFICIAL_MAP.get(q.exam)
+  const off = key?.status === 'definitivo' ? key.answers?.[q.n - 1] : undefined
+  if (!off) return q
+  const official = off as Letter | '*'
+  const { alert: _alert, ...rest } = q
+  return {
+    ...rest,
+    official,
+    officialNote: key!.notes[q.n],
+    // Anulada: mantém a melhor resposta de estudo; caso contrário vale a letra da banca
+    answer: official === '*' ? q.answer : official,
+    myAnswer: official !== '*' && official !== q.answer ? q.answer : undefined
+  }
+}
+
 export const QUESTIONS: Question[] = [
   ...(enare2026 as Question[]),
   ...(fdt2025 as Question[]),
   ...(fdt2024 as Question[]),
   ...(fdt2023 as Question[])
-]
+].map(withOfficial)
 
 export const QMAP = new Map(QUESTIONS.map((q) => [q.id, q]))
 

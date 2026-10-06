@@ -17,6 +17,14 @@ export interface Question {
   /** Aviso de questão controversa / gabarito a conferir */
   alert?: string
   img?: string
+  /** Resolução de estudo original, quando difere do gabarito oficial */
+  myAnswer?: Letter
+  /** Gabarito definitivo da banca ('*' = anulada) */
+  official?: Letter | '*'
+  /** Resumo da justificativa da banca (anulação/alteração) */
+  officialNote?: string
+  /** Cartão de memorização (ponto-chave da questão) */
+  card?: { f: string; b: string }
 }
 
 export interface Attempt {
@@ -31,7 +39,7 @@ export interface Attempt {
   synced?: boolean
 }
 
-export type StateKind = 'star' | 'note' | 'override' | 'plan' | 'settings' | 'topic' | 'errtype'
+export type StateKind = 'star' | 'note' | 'override' | 'plan' | 'settings' | 'topic' | 'errtype' | 'card' | 'official' | 'forecast'
 
 export interface StateEntry {
   kind: StateKind
@@ -96,6 +104,8 @@ export interface Session {
   idx: number
   /** Respostas marcadas no simulado (só viram tentativas ao finalizar) */
   answers: Record<string, { sel: Letter; guessed: boolean }>
+  /** Tempo gasto em cada questão (ms), acumulado ao navegar */
+  spent?: Record<string, number>
   startedAt: string
   durationMin?: number
   finishedAt?: string

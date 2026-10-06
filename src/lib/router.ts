@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
-export type Tab = 'hoje' | 'plano' | 'questoes' | 'revisao' | 'conteudo' | 'ajustes' | 'sessao'
-const TABS: Tab[] = ['hoje', 'plano', 'questoes', 'revisao', 'conteudo', 'ajustes', 'sessao']
+export type Tab = 'hoje' | 'plano' | 'questoes' | 'revisao' | 'conteudo' | 'ajustes' | 'sessao' | 'gabaritos' | 'cards'
+const TABS: Tab[] = ['hoje', 'plano', 'questoes', 'revisao', 'conteudo', 'ajustes', 'sessao', 'gabaritos', 'cards']
 
 export interface Route {
   tab: Tab

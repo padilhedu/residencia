@@ -6,10 +6,21 @@ import { go } from './router'
 import type { Attempt, ExamId, Letter, Mode, Question, Session, Settings } from './types'
 import { DAY, todayISO, toISO } from './dates'
 
+export interface OfficialInfo {
+  letter: Letter | '*'
+  source: 'banca' | 'importado'
+  note?: string
+}
+
 export interface Study {
   d: Data
   settings: Settings
+  /** Resposta efetiva por questão quando difere de q.answer (gabarito importado ou correção manual) */
   overrides: Record<string, Letter | undefined>
+  /** Questões anuladas (gabarito definitivo embutido ou importado) */
+  annulled: Set<string>
+  /** Gabarito oficial conhecido por questão */
+  official: Map<string, OfficialInfo>
   cards: Map<string, Card>
   stats: Map<string, TopicStat>
   stars: Set<string>
@@ -17,17 +28,44 @@ export interface Study {
   due: ReturnType<typeof dueCards>
 }
 
+/** Gabaritos oficiais importados pelo usuário (ex.: ENARE, quando a FGV divulgar) */
+export function importedKeysOf(d: Data): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const e of Object.values(d.state)) if (e.kind === 'official' && typeof e.value === 'string') out[e.key] = e.value
+  return out
+}
+
+export function buildKeyInfo(d: Data) {
+  const manual = overridesOf(d)
+  const imported = importedKeysOf(d)
+  const overrides: Record<string, Letter | undefined> = {}
+  const annulled = new Set<string>()
+  const official = new Map<string, OfficialInfo>()
+  for (const q of QUESTIONS) {
+    let info: OfficialInfo | undefined = q.official ? { letter: q.official, source: 'banca', note: q.officialNote } : undefined
+    const imp = imported[q.exam]?.[q.n - 1]
+    if (imp && /^[A-E*]$/.test(imp)) info = { letter: imp as Letter | '*', source: 'importado' }
+    if (info) {
+      official.set(q.id, info)
+      if (info.letter === '*') annulled.add(q.id)
+      else if (info.letter !== q.answer) overrides[q.id] = info.letter
+    }
+    if (manual[q.id]) overrides[q.id] = manual[q.id]
+  }
+  return { overrides, annulled, official }
+}
+
 export function useStudy(): Study {
   const d = useData()
   return useMemo(() => {
-    const overrides = overridesOf(d)
-    const cards = buildCards(d.attempts, QMAP, overrides)
-    const stats = topicStats(d.attempts, QMAP, overrides)
+    const { overrides, annulled, official } = buildKeyInfo(d)
+    const cards = buildCards(d.attempts, QMAP, overrides, annulled)
+    const stats = topicStats(d.attempts, QMAP, overrides, annulled)
     // vence "hoje" = até o fim do dia local
     const end = new Date()
     end.setHours(23, 59, 59, 999)
     return {
-      d, overrides, cards, stats,
+      d, overrides, annulled, official, cards, stats,
       settings: settingsOf(d),
       stars: keysOf(d, 'star'),
       notes: keysOf(d, 'note'),
@@ -84,9 +122,10 @@ export function finishSimulado(s: Session, overrides: Record<string, Letter | un
     const ans = s.answers[qid]
     const q = QMAP.get(qid)
     if (!ans || !q) continue
+    const ms = s.spent?.[qid]
     list.push({
       id: uid(), qid, selected: ans.sel, correct: ans.sel === answerOf(q, overrides) && !ans.guessed, guessed: ans.guessed,
-      mode: 'simulado', at: new Date(now + i++).toISOString()
+      mode: 'simulado', timeMs: ms ? Math.round(ms) : undefined, at: new Date(now + i++).toISOString()
     })
   }
   store.addAttempts(list)
@@ -114,8 +153,8 @@ export function streak(counts: Map<string, number>): number {
   return n
 }
 
-/** Acerto considerando só a primeira tentativa de cada questão */
-export function firstTryAcc(attempts: Attempt[], filter: (q: Question) => boolean, overrides: Record<string, Letter | undefined>) {
+/** Acerto considerando só a primeira tentativa de cada questão (anuladas ficam de fora) */
+export function firstTryAcc(attempts: Attempt[], filter: (q: Question) => boolean, overrides: Record<string, Letter | undefined>, annulled?: Set<string>) {
   const seen = new Set<string>()
   let total = 0
   let ok = 0
@@ -123,9 +162,38 @@ export function firstTryAcc(attempts: Attempt[], filter: (q: Question) => boolea
     if (seen.has(a.qid)) continue
     seen.add(a.qid)
     const q = QMAP.get(a.qid)
-    if (!q || !filter(q)) continue
+    if (!q || !filter(q) || annulled?.has(q.id)) continue
     total++
     if (a.selected === answerOf(q, overrides) && !a.guessed) ok++
   }
   return { total, ok, acc: total ? ok / total : 0 }
+}
+
+/** Tempo considerado "ocioso" (app aberto sem responder): fica fora das médias */
+export const MAX_QUESTION_MS = 15 * 60_000
+
+export interface TimeStat {
+  topic: string
+  n: number
+  avgMs: number
+}
+
+/** Tempo médio por questão em cada tema (só tentativas com tempo registrado) */
+export function timeByTopic(attempts: Attempt[]): { overall: { n: number; avgMs: number }; byTopic: TimeStat[] } {
+  const m = new Map<string, { n: number; sum: number }>()
+  let n = 0
+  let sum = 0
+  for (const a of attempts) {
+    if (!a.timeMs || a.timeMs < 3000 || a.timeMs > MAX_QUESTION_MS) continue
+    const q = QMAP.get(a.qid)
+    if (!q) continue
+    const t = m.get(q.topic) ?? { n: 0, sum: 0 }
+    t.n++
+    t.sum += a.timeMs
+    m.set(q.topic, t)
+    n++
+    sum += a.timeMs
+  }
+  const byTopic = [...m.entries()].map(([topic, t]) => ({ topic, n: t.n, avgMs: t.sum / t.n })).sort((a, b) => b.avgMs - a.avgMs)
+  return { overall: { n, avgMs: n ? sum / n : 0 }, byTopic }
 }

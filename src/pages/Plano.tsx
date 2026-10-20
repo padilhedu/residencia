@@ -2,15 +2,65 @@ import { useMemo, useState } from 'react'
 import { EXAM_MAP } from '../data/exams'
 import { buildPlan, currentWeek, WEEKLY_ROUTINE } from '../data/plan'
 import { PLAN_START, keysOf, store } from '../lib/store'
-import { startExamSimulado, startReinforcement, startSession, useStudy } from '../lib/study'
+import { startErrors, startExamSimulado, startGerais, startMixedSimulado, startReinforcement, startSession, startTopicQuestions, useStudy } from '../lib/study'
 import { QUESTIONS } from '../data/exams'
 import { fmtRange, fmtShort, todayISO } from '../lib/dates'
 import type { PlanItem, PlanWeek } from '../lib/types'
-import { Bar, Icon } from '../components/ui'
+import { Bar, Icon, toast } from '../components/ui'
 import type { Study } from '../lib/study'
+import { go } from '../lib/router'
+import { SprintPlan } from './Sprint'
+import { SPRINT, sprintActive } from '../data/sprint'
 
 const KIND_LABEL: Record<PlanItem['kind'], string> = {
-  ler: 'Leitura', assistir: 'Aula', questoes: 'Questões', revisao: 'Revisão', simulado: 'Simulado', lei: 'Lei seca'
+  ler: 'Leitura', assistir: 'Aula', questoes: 'Questões', revisao: 'Revisão', simulado: 'Simulado', lei: 'Lei seca', teoria: 'Teoria'
+}
+
+/** Botões de ação de um item do plano (questões, simulados, revisão, flashcards) */
+function ItemActions({ it, study }: { it: PlanItem; study: Study }) {
+  const btns: JSX.Element[] = []
+  if (it.kind === 'questoes' && it.topics?.length && !it.action) {
+    const n = it.n ?? 20
+    btns.push(
+      <button key="q" className="btn small primary" onClick={() => {
+        if (it.n) return startTopicQuestions(study, it.topics!, n, it.text)
+        const ids = QUESTIONS.filter((q) => it.topics!.includes(q.topic) && !study.cards.has(q.id)).map((q) => q.id)
+        const all = QUESTIONS.filter((q) => it.topics!.includes(q.topic)).map((q) => q.id)
+        startSession({ mode: 'treino', title: it.text, qids: (ids.length ? ids : all).slice(0, 20) })
+      }}>Resolver {n}</button>
+    )
+  }
+  if (it.kind === 'simulado' && it.exam) {
+    btns.push(
+      <button key="s" className="btn small primary" onClick={() => {
+        const e = EXAM_MAP.get(it.exam!)!
+        const range = it.range ?? (it.text.includes('bloco geral') ? ([1, 20] as [number, number]) : undefined)
+        startExamSimulado(e.id, e.minutes, it.text, range)
+      }}>Começar simulado</button>
+    )
+  }
+  if (it.action === 'misto' || it.action === 'misto-esp') {
+    btns.push(<button key="m" className="btn small primary" onClick={() => startMixedSimulado(study, it.action === 'misto')}>Começar simulado</button>)
+  }
+  if (it.action === 'erros') {
+    btns.push(<button key="e" className="btn small primary" onClick={() => { if (!startErrors(study, it.topics)) toast('Nenhum erro registrado nesses temas ainda ✓') }}>Refazer erros</button>)
+  }
+  if (it.action === 'gerais') btns.push(<button key="g" className="btn small" onClick={() => startGerais(study, it.n ?? 10)}>Resolver {it.n ?? 10}</button>)
+  if (it.action === 'reforco') btns.push(<button key="r" className="btn small primary" onClick={() => startReinforcement(study)}>Reforço</button>)
+  if (it.action === 'cards') {
+    const deck = it.kind === 'lei' || /lei seca/i.test(it.text) ? 'lei' : 'erros'
+    btns.push(<button key="c" className="btn small" onClick={() => go('cards', deck)}>Flashcards</button>)
+  }
+  if (it.action === 'revisao' || (!it.action && it.text.startsWith('Revisão espaçada'))) {
+    btns.push(
+      <button key="v" className="btn small" disabled={!study.due.length} onClick={() => startSession({ mode: 'revisao', title: 'Revisão espaçada de hoje', qids: study.due.slice(0, 40).map((c) => c.qid) })}>
+        Fila de hoje ({study.due.length})
+      </button>
+    )
+    if (it.action === 'revisao') btns.push(<button key="vc" className="btn small ghost" onClick={() => go('cards')}>Flashcards</button>)
+  }
+  if (!it.action && it.text.includes('reforço')) btns.push(<button key="rf" className="btn small" onClick={() => startReinforcement(study)}>Reforço</button>)
+  return btns.length ? <div className="acts">{btns}</div> : null
 }
 
 export function usePlan() {
@@ -32,32 +82,19 @@ export function PlanItemRow({ it, done, study }: { it: PlanItem; done: boolean; 
         ) : (
           it.text
         )}
-        {(it.kind === 'questoes' || it.kind === 'simulado' || it.text.startsWith('Revisão espaçada') || it.text.includes('reforço')) && !done && (
-          <div className="acts">
-            {it.kind === 'questoes' && it.topics && (
-              <>
-                <button className="btn small primary" onClick={() => {
-                  const ids = QUESTIONS.filter((q) => it.topics!.includes(q.topic) && !study.cards.has(q.id)).map((q) => q.id)
-                  const all = QUESTIONS.filter((q) => it.topics!.includes(q.topic)).map((q) => q.id)
-                  startSession({ mode: 'treino', title: it.text, qids: (ids.length ? ids : all).slice(0, 20) })
-                }}>Resolver 20</button>
-              </>
-            )}
-            {it.kind === 'simulado' && it.exam && (
-              <button className="btn small primary" onClick={() => {
-                const e = EXAM_MAP.get(it.exam!)!
-                const geral = it.text.includes('bloco geral')
-                startExamSimulado(e.id, e.minutes, it.text, geral ? [1, 20] : undefined)
-              }}>Começar simulado</button>
-            )}
-            {it.text.startsWith('Revisão espaçada') && (
-              <button className="btn small" onClick={() => startSession({ mode: 'revisao', title: 'Revisão espaçada de hoje', qids: study.due.slice(0, 40).map((c) => c.qid) })} disabled={!study.due.length}>
-                Fila de hoje ({study.due.length})
-              </button>
-            )}
-            {it.text.includes('reforço') && <button className="btn small" onClick={() => startReinforcement(study)}>Reforço</button>}
+        {it.points && (
+          <ul className="points">
+            {it.points.map((p) => <li key={p}>{p}</li>)}
+          </ul>
+        )}
+        {it.refs && it.refs.length > 0 && (
+          <div className="refs">
+            {it.refs.map((r) => r.url
+              ? <a key={r.t} href={r.url} target="_blank" rel="noopener noreferrer">{r.t} <Icon.ext /></a>
+              : <span key={r.t}>{r.t}</span>)}
           </div>
         )}
+        {!done && <ItemActions it={it} study={study} />}
       </div>
     </div>
   )
@@ -91,16 +128,19 @@ export function Plano() {
   const { weeks, done, study } = usePlan()
   const today = todayISO()
   const cur = currentWeek(weeks, today)
-  const [phase, setPhase] = useState<'fdt' | 'enare'>(cur?.phase ?? 'fdt')
+  const [phase, setPhase] = useState<'sprint' | 'fdt' | 'enare'>(sprintActive(today) ? 'sprint' : cur?.phase ?? 'fdt')
   const list = weeks.filter((w) => w.phase === phase)
-  const { fdtDate, enareDate } = study.settings
+  const { enareDate } = study.settings
 
   return (
     <>
-      <div className="chips" style={{ marginBottom: 12 }}>
-        <button className="chip" aria-pressed={phase === 'fdt'} onClick={() => setPhase('fdt')}>FDT · {fmtShort(fdtDate)}</button>
+      <div className="chips scroll" style={{ marginBottom: 12 }}>
+        <button className="chip" aria-pressed={phase === 'sprint'} onClick={() => setPhase('sprint')}>30 dias · FDT {fmtShort(SPRINT.exam)}</button>
+        <button className="chip" aria-pressed={phase === 'fdt'} onClick={() => setPhase('fdt')}>FDT semanal</button>
         <button className="chip" aria-pressed={phase === 'enare'} onClick={() => setPhase('enare')}>ENARE · {fmtShort(enareDate)}</button>
       </div>
+      {phase === 'sprint' ? <SprintPlan /> : (
+      <>
 
       <div className="card tint">
         <h2>{phase === 'fdt' ? 'Reta final para a FDT/Fundatec' : 'Preparação ENARE (FGV)'}</h2>
@@ -126,6 +166,8 @@ export function Plano() {
       {list.map((w) => (
         <WeekCard key={w.id + w.start} w={w} open={w.id === cur?.id} current={w.id === cur?.id} done={done} study={study} />
       ))}
+      </>
+      )}
     </>
   )
 }

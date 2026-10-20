@@ -350,3 +350,9 @@ label.field > span { display: block; font-size: 12.5px; font-weight: 700; color:
 .flash-peek summary { cursor: pointer; font-weight: 600; }
 .flash-peek .flash-back-text { margin: 8px 0 4px; font-size: 14.5px; }
 .inline { display: inline; }
+
+/* Plano de 30 dias: teoria dirigida */
+.item .points { margin: 6px 0 2px; padding-left: 18px; color: var(--ink-soft); font-size: 13.5px; line-height: 1.45; }
+.item .points li { margin: 2px 0; }
+.item .refs { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; font-size: 12.5px; color: var(--ink-faint); }
+.item.done .points, .item.done .refs { display: none; }

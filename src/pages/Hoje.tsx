@@ -11,6 +11,8 @@ import { Bar, accTone, pct } from '../components/ui'
 import { addDays, daysUntil, fmtLong, fmtRange, todayISO, toISO } from '../lib/dates'
 import { InstallHint } from '../components/InstallHint'
 import { useFlash } from '../lib/decks'
+import { SprintToday } from './Sprint'
+import { sprintActive } from '../data/sprint'
 
 export function Hoje() {
   const { weeks, done, study } = usePlan()
@@ -53,7 +55,9 @@ export function Hoje() {
         )}
       </div>
 
-      {d.attempts.length === 0 && (
+      {sprintActive(today) && <SprintToday />}
+
+      {d.attempts.length === 0 && !sprintActive(today) && (
         <div className="card gold" style={{ marginTop: 12 }}>
           <h2>Comece por aqui</h2>
           <p className="muted" style={{ marginTop: 0 }}>
@@ -104,7 +108,7 @@ export function Hoje() {
         <p className="faint" style={{ marginBottom: 0 }}>Hoje ({routine.day}): {routine.task}</p>
       </div>
 
-      {week && (
+      {!sprintActive(today) && week && (
         <div className="card week current">
           <div className="faint">{fmtRange(week.start, week.end)} · {week.phase === 'fdt' ? 'Fase FDT' : 'Fase ENARE'}</div>
           <h2 style={{ margin: '2px 0 4px' }}>{week.title}</h2>

@@ -10,7 +10,7 @@ Funciona no celular como app instalado e **sem internet**. Com login, o progress
 | Aba | O que faz |
 |-----|-----------|
 | **Hoje** | Contagem regressiva das provas, fila de revisão do dia, meta diária, tarefas da semana, temas mais fracos e teoria a revisar |
-| **Plano** | Cronograma semana a semana: o que **ler** (bibliografia do edital com links), o que **assistir** (buscas de aulas), questões, lei seca e simulados, com checklist |
+| **Plano** | **Plano de 30 dias para a FDT 2026** (20/10 → 22/11, foco nas 40 questões específicas: questões das provas antigas da Fundatec por tema, teoria dirigida, 4 simulados e manutenção do bloco geral) e o cronograma semana a semana: o que **ler** (bibliografia do edital com links), o que **assistir** (buscas de aulas), questões, lei seca e simulados, com checklist |
 | **Questões** | Aba só de resolução: 280 questões comentadas (ENARE 2026/27, FDT 2025, 2024 e 2023), filtros por prova/bloco/tema/situação, modo treino (comentário na hora) e simulado cronometrado |
 | **Revisão** | Revisão espaçada guiada pelo % de acerto, temas críticos, desempenho por prova/área/tema e tipo de erro |
 | **Conteúdo** | Conteúdo programático por tema (33 temas), bibliografia oficial, aulas sugeridas e incidência em cada banca |

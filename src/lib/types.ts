@@ -78,11 +78,20 @@ export interface Topic {
 
 export interface PlanItem {
   id: string
-  kind: 'ler' | 'assistir' | 'questoes' | 'revisao' | 'simulado' | 'lei'
+  kind: 'ler' | 'assistir' | 'questoes' | 'revisao' | 'simulado' | 'lei' | 'teoria'
   text: string
   url?: string
   topics?: string[]
   exam?: ExamId
+  /** Quantidade de questões da sessão */
+  n?: number
+  /** Simulado só com parte da prova (ex.: [21, 60] = específicas da FDT) */
+  range?: [number, number]
+  /** Teoria dirigida: pontos a estudar e bibliografia */
+  points?: string[]
+  refs?: Ref[]
+  /** Ação do botão: refazer erros, simulado misto, reforço, flashcards, bloco geral, fila de revisão */
+  action?: 'erros' | 'misto' | 'misto-esp' | 'reforco' | 'cards' | 'gerais' | 'revisao'
 }
 
 export interface PlanWeek {

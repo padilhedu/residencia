@@ -482,3 +482,6 @@ export const ytSearch = (q: string) => `https://www.youtube.com/results?search_q
 
 export const topicName = (id: string) => TOPIC_MAP.get(id)?.name ?? id
 export const topicShort = (id: string) => TOPIC_MAP.get(id)?.short ?? id
+
+/** Bibliografia do Anexo I (FDT 2026) para reuso no plano de 30 dias */
+export const REFS = L

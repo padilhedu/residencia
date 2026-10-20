@@ -197,3 +197,75 @@ export function timeByTopic(attempts: Attempt[]): { overall: { n: number; avgMs:
   const byTopic = [...m.entries()].map(([topic, t]) => ({ topic, n: t.n, avgMs: t.sum / t.n })).sort((a, b) => b.avgMs - a.avgMs)
   return { overall: { n, avgMs: n ? sum / n : 0 }, byTopic }
 }
+
+// ───────── Sessões do plano de 30 dias ─────────
+
+function shuffled<T>(a: T[]): T[] {
+  const r = [...a]
+  for (let i = r.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[r[i], r[j]] = [r[j], r[i]]
+  }
+  return r
+}
+
+/** Ordena por prioridade: erradas na última tentativa, depois inéditas, depois as já acertadas (aleatório dentro de cada grupo) */
+function byNeed(study: Study, qs: Question[]): Question[] {
+  const wrong = qs.filter((q) => study.cards.get(q.id)?.lastCorrect === false)
+  const fresh = qs.filter((q) => !study.cards.has(q.id))
+  const rest = qs.filter((q) => study.cards.get(q.id)?.lastCorrect === true)
+  return [...shuffled(wrong), ...shuffled(fresh), ...shuffled(rest)]
+}
+
+const usable = (study: Study) => QUESTIONS.filter((q) => !study.annulled.has(q.id))
+const isFdt = (q: Question) => q.exam.startsWith('fdt')
+
+/** Questões de um tema: provas da Fundatec primeiro (inéditas → erradas), depois ENARE */
+export function startTopicQuestions(study: Study, topics: string[], n: number, title: string) {
+  const pool = usable(study).filter((q) => topics.includes(q.topic))
+  const order = (qs: Question[]) => {
+    const fresh = qs.filter((q) => !study.cards.has(q.id))
+    const wrong = qs.filter((q) => study.cards.get(q.id)?.lastCorrect === false)
+    const rest = qs.filter((q) => study.cards.get(q.id)?.lastCorrect === true)
+    return [...shuffled(fresh), ...shuffled(wrong), ...shuffled(rest)]
+  }
+  const fdt = order(pool.filter(isFdt))
+  const enare = order(pool.filter((q) => !isFdt(q)))
+  // inéditas e erradas da FDT, depois as do ENARE, e só então as já acertadas
+  const firstPass = (qs: Question[]) => qs.filter((q) => study.cards.get(q.id)?.lastCorrect !== true)
+  const ids = [...firstPass(fdt), ...firstPass(enare), ...fdt, ...enare].map((q) => q.id)
+  startSession({ mode: 'treino', title, qids: [...new Set(ids)].slice(0, n) })
+}
+
+/** Refazer erros (última tentativa errada ou já errada antes). topics vazio = todas as específicas */
+export function startErrors(study: Study, topics?: string[]) {
+  const qs = usable(study).filter((q) => {
+    const c = study.cards.get(q.id)
+    if (!c || c.lapses === 0) return false
+    if (!topics) return true
+    if (topics.length === 0) return q.block === 'especificos'
+    return topics.includes(q.topic)
+  })
+  const ids = byNeed(study, qs).map((q) => q.id)
+  if (!ids.length) return false
+  startSession({ mode: 'treino', title: 'Refazer erros', qids: ids })
+  return true
+}
+
+/** Questões do bloco geral (SUS) */
+export function startGerais(study: Study, n: number) {
+  const qs = usable(study).filter((q) => q.block === 'gerais')
+  startSession({ mode: 'treino', title: `Bloco geral (SUS) · ${n} questões`, qids: byNeed(study, qs).slice(0, n).map((q) => q.id) })
+}
+
+/** Simulado montado pelo app: 40 específicas (+ 20 gerais), priorizando erradas e inéditas */
+export function startMixedSimulado(study: Study, withGerais: boolean) {
+  const esp = byNeed(study, usable(study).filter((q) => q.block === 'especificos')).slice(0, 40)
+  const ger = withGerais ? byNeed(study, usable(study).filter((q) => q.block === 'gerais')).slice(0, 20) : []
+  const qids = [...ger, ...esp].map((q) => q.id)
+  startSession({
+    mode: 'simulado', qids,
+    title: withGerais ? 'Simulado misto · 60 questões' : 'Simulado de específicas · 40 questões',
+    durationMin: withGerais ? 240 : 160
+  })
+}

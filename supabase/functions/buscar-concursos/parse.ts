@@ -53,7 +53,8 @@ const MULTI = /residencia (multiprofissional|uniprofissional|em area profissiona
 const ENARE = /\benare\b|exame nacional de residencia/
 const SC_CIDADE = /\b(florianopolis|joinville|blumenau|sao jose|chapeco|criciuma|itajai|jaragua do sul|lages|palhoca|balneario camboriu|brusque|tubarao|camboriu|navegantes|concordia|rio do sul|ararangua|gaspar|indaial|cacador|biguacu|itapema|sao bento do sul|mafra|canoinhas|videira|xanxere|joacaba|santo amaro da imperatriz|tijucas|imbituba|laguna|ufsc|udesc|fepese|ses\/sc|ses-sc|hu-ufsc|hospital universitario polydoro)\b/
 const UF_RE = /(?:^|[\s(/–-])(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)(?=$|[\s)/,.;:–-])/g
-const AUX = /auxiliar (de |em )?(saude bucal|consultorio dentario|consultorio odontologico|dentista)|tecnico (em|de) saude bucal|tecnico em protese dentaria|protetico|\basb\b|\btsb\b/g
+// Cargos de apoio em saúde bucal e exames do concurso ("avaliação médica e odontológica") não são vaga de dentista
+const AUX = /auxiliar (de |em )?(saude bucal|consultorio dentario|consultorio odontologico|dentista|odontologia)|auxiliar odontologico|atendente de consultorio (dentario|odontologico)|tecnico (em|de) (saude bucal|higiene dental)|tecnico em protese dentaria|protetico|\b(asb|tsb|thd)\b|(exames?|avaliac(ao|oes)|inspec(ao|oes))[^.;]{0,30}?odontologic[ao]s?/g
 const NOISE = /\bresultado (final|preliminar)|\bgabarito|\baprovados\b|\bconvoca(cao|dos)|\bhomologa/
 
 export function ufOf(text: string): string | null {
@@ -314,12 +315,11 @@ export function parseDetalhe(html: string, url: string, fonte: string): Raw | nu
   // texto de links (provas antigas, outros concursos, menus) não conta como cargo do concurso
   const texto = stripTags(conteudo.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, ' '))
   const n = norm(texto)
-  const dm = n.search(DENT)
+  // procura o cargo depois de apagar (mantendo as posições) auxiliares/técnicos e exames odontológicos
+  const dm = n.replace(AUX, (m) => ' '.repeat(m.length)).search(DENT)
   const ehResid = RESID.test(n) && (dm >= 0 || MULTI.test(n))
   const ehEnare = ENARE.test(norm(titulo))
   if (dm < 0 && !ehResid && !ehEnare) return null
-  // só auxiliar/técnico em saúde bucal não conta
-  if (dm >= 0 && !DENT.test(n.replace(AUX, ' ')) && !ehResid && !ehEnare) return null
   const partes: string[] = []
   if (dm >= 0) partes.push(trecho(texto, dm, 200, 250))
   const im = n.search(/inscri[cç](?:o|oe)es?[^.]{0,80}?(?:ate|a)\s*(?:o dia\s*)?\d{1,2}(?:\/| de )/)

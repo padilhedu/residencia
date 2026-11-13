@@ -122,6 +122,11 @@ describe('busca em dois níveis', () => {
     const ache = '<main><header><nav><a href="/">Início</a></nav></header><article><h1>Prefeitura de Ituporanga-SC</h1><table><tr><td>Cirurgião-Dentista</td><td>R$ 8.585,88</td><td>CR</td></tr></table><aside><a href="/x">Outro concurso dentista</a></aside></article><footer>x</footer></main>'
     expect(parseDetalhe(ache, 'u', 'Ache')?.dentista).toBe(true)
     expect(parseDetalhe('<h1>Prefeitura X</h1><p>Auxiliar de Saúde Bucal (2 vagas)</p>', 'u', 'JC')).toBeNull()
+    // exame do concurso e cargos auxiliares não contam; a vaga real aparece no trecho
+    expect(parseDetalhe('<h1>Concurso PM-SC</h1><p>Exame de Saúde (avaliação médica e odontológica), eliminatório.</p>', 'u', 'Ache')).toBeNull()
+    expect(parseDetalhe('<h1>Prefeitura de Concórdia</h1><p>Auxiliar Odontológico (1) Técnico em Higiene Dental (1)</p>', 'u', 'Ache')).toBeNull()
+    const lz = parseDetalhe('<h1>Prefeitura de Luzerna-SC</h1><p>Auxiliar de Saúde Bucal (Cr) ' + 'x '.repeat(300) + 'Cirurgião-Dentista (1) R$ 9.000,00</p>', 'u', 'Ache')!
+    expect(lz.texto).toMatch(/Cirurgião-Dentista/)
     const res = parseDetalhe('<h1>HU-UFSC seleciona residentes</h1><article><p>Residência Multiprofissional em Saúde: vagas para Odontologia.</p></article>', 'u', 'Ache')!
     expect(classify({ ...res, uf: 'SC' })?.categoria).toBe('residencia')
   })

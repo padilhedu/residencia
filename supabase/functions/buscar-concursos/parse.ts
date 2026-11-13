@@ -311,7 +311,8 @@ export function parseDetalhe(html: string, url: string, fonte: string): Raw | nu
   const tt = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]
   const titulo = stripTags(h1 || tt || '').replace(/\s*[·|–-]\s*(JC Concursos|Ache Concursos|Concursos no Brasil|PCI Concursos)\s*$/i, '').trim()
   if (!titulo) return null
-  const texto = stripTags(conteudo)
+  // texto de links (provas antigas, outros concursos, menus) não conta como cargo do concurso
+  const texto = stripTags(conteudo.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, ' '))
   const n = norm(texto)
   const dm = n.search(DENT)
   const ehResid = RESID.test(n) && (dm >= 0 || MULTI.test(n))

@@ -24,6 +24,8 @@ interface Fonte {
   tipo: 'pci' | 'rss' | 'links' | 'lista'
   url: string
   padrao: string | null
+  paralelo: number | null
+  pausa_ms: number | null
   dica: Categoria | null
   so_dentista: boolean
   uf: string | null
@@ -52,39 +54,72 @@ async function baixar(url: string, ms = 20000): Promise<string> {
 const PRAZO_MS = 110_000
 let inicio = Date.now()
 
-/** Executa fn em cada item com no máximo `n` ao mesmo tempo, parando de iniciar novos ao estourar o prazo */
-async function emLotes<T, R>(lista: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** Executa fn em cada item com no máximo `n` ao mesmo tempo (e pausa entre pedidos), parando ao estourar o prazo
+ *  ou quando fn devolver `parar` (ex.: o site respondeu 429 — volta na próxima execução) */
+async function emLotes<T, R>(lista: T[], n: number, pausa: number, fn: (x: T) => Promise<R | 'parar'>): Promise<R[]> {
   const out: R[] = []
   let i = 0
+  let parar = false
   await Promise.all(
-    Array.from({ length: n }, async () => {
-      while (i < lista.length && Date.now() - inicio < PRAZO_MS) {
+    Array.from({ length: Math.max(1, n) }, async () => {
+      while (!parar && i < lista.length && Date.now() - inicio < PRAZO_MS) {
         const x = lista[i++]
         try {
-          out.push(await fn(x))
+          const r = await fn(x)
+          if (r === 'parar') parar = true
+          else out.push(r)
         } catch {
           /* página com erro: segue */
         }
+        if (pausa) await dormir(pausa)
       }
     })
   )
   return out
 }
 
+/** Diagnóstico por fonte, gravado em concurso_fontes.ultimo_status */
+const diag = new Map<number, string>()
+
 /** Listagem → abre cada concurso e procura o cargo de dentista / residência na página */
-async function varrerLista(f: Fonte, conhecidos: Set<string>): Promise<Raw[]> {
+async function varrerLista(f: Fonte, conhecidos: Set<string>, verificadas: Set<string>): Promise<Raw[]> {
   const body = await baixar(f.url)
   const links = listLinks(body, f.url, f.padrao ?? '.', 150)
   if (!links.length) throw new Error('nenhum link de concurso na listagem (o site mudou?)')
-  // já está na base: não precisa abrir de novo, só marcar como ainda listado
+  // já está na base: só marca como ainda listado; já verificada sem Odontologia: não abre de novo
   const vistos: Raw[] = []
-  const abrir = links.filter((u) => (conhecidos.has(hashId(u)) ? (vistos.push({ titulo: '', url: u, fonte: f.nome }), false) : true))
-  const achados = await emLotes(abrir, 8, async (u) => parseDetalhe(await baixar(u, 15000), u, f.nome))
+  const abrir = links.filter((u) => {
+    const id = hashId(u)
+    if (conhecidos.has(id)) return vistos.push({ titulo: '', url: u, fonte: f.nome }), false
+    return !verificadas.has(id)
+  })
+  let ok = 0
+  let falhas = 0
+  let primeiroErro = ''
+  const abertas: string[] = []
+  const achados = await emLotes(abrir, f.paralelo ?? 4, f.pausa_ms ?? 0, async (u) => {
+    try {
+      const r = parseDetalhe(await baixar(u, 15000), u, f.nome)
+      ok++
+      abertas.push(hashId(u))
+      return r
+    } catch (e) {
+      falhas++
+      const msg = String(e instanceof Error ? e.message : e).slice(0, 60)
+      primeiroErro ||= msg
+      return msg.includes('429') ? 'parar' : null
+    }
+  })
+  if (abertas.length) await admin.from('concurso_paginas').upsert(abertas.map((id) => ({ id, fonte_id: f.id })), { onConflict: 'id', ignoreDuplicates: true })
+  const faltam = abrir.length - ok - falhas
+  diag.set(f.id, `ok · ${links.length} links, ${links.length - abrir.length} já verificados, ${ok} abertos agora${falhas ? `, ${falhas} com erro (${primeiroErro})` : ''}${faltam ? `, ${faltam} ficam para a próxima` : ''}`)
   return [...vistos, ...achados.filter((r): r is Raw => !!r)]
 }
 
-async function varrerFonte(f: Fonte, conhecidos: Set<string>): Promise<Raw[]> {
-  if (f.tipo === 'lista') return (await varrerLista(f, conhecidos)).map((r) => ({ ...r, hint: r.hint ?? f.dica ?? undefined, uf: r.uf ?? (r.titulo ? ufOf(r.titulo) : null) ?? f.uf ?? undefined }))
+async function varrerFonte(f: Fonte, conhecidos: Set<string>, verificadas: Set<string>): Promise<Raw[]> {
+  if (f.tipo === 'lista') return (await varrerLista(f, conhecidos, verificadas)).map((r) => ({ ...r, hint: r.hint ?? f.dica ?? undefined, uf: r.uf ?? (r.titulo ? ufOf(r.titulo) : null) ?? f.uf ?? undefined }))
   const body = await baixar(f.url)
   const raws = f.tipo === 'pci' ? parsePci(body, f.nome) : f.tipo === 'rss' ? parseRss(body, f.nome) : parseLinks(body, f.url, f.nome, f.dica ?? undefined)
   return raws.map((r) => ({
@@ -95,22 +130,27 @@ async function varrerFonte(f: Fonte, conhecidos: Set<string>): Promise<Raw[]> {
   }))
 }
 
-async function varrer(origem: 'cron' | 'app') {
+async function varrer(origem: 'cron' | 'app', avisar = origem === 'cron') {
   inicio = Date.now()
-  const { data: fontes, error } = await admin.from('concurso_fontes').select('id,nome,tipo,url,padrao,dica,so_dentista,uf').eq('ativo', true).order('id')
+  diag.clear()
+  const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10) // data em Brasília
+  const { data: fontes, error } = await admin.from('concurso_fontes').select('id,nome,tipo,url,padrao,paralelo,pausa_ms,dica,so_dentista,uf').eq('ativo', true).order('id')
   if (error) throw error
   const { data: base } = await admin.from('concursos').select('id')
   const conhecidos = new Set((base ?? []).map((r) => r.id as string))
+  const { data: pags } = await admin.from('concurso_paginas').select('id').gte('aberto_em', new Date(Date.now() - 120 * 864e5).toISOString())
+  const verificadas = new Set((pags ?? []).map((r) => r.id as string))
   const erros: Record<string, string> = {}
   const jaVistos: string[] = []
   const porFonte = await Promise.all(
     ((fontes ?? []) as Fonte[]).map(async (f) => {
       try {
-        const raws = await varrerFonte(f, conhecidos)
+        const raws = await varrerFonte(f, conhecidos, verificadas)
         // links já conhecidos (sem título) só renovam o "visto_em"
         for (const r of raws) if (!r.titulo) jaVistos.push(hashId(r.url))
-        const items = raws.filter((r) => r.titulo).map((r) => toItem(r)).filter((x): x is Item => !!x)
-        await admin.from('concurso_fontes').update({ ultimo_status: 'ok', ultimo_total: items.length + raws.filter((r) => !r.titulo).length, atualizado_em: new Date().toISOString() }).eq('id', f.id)
+        // inscrições já encerradas não interessam (listagens trazem concursos antigos)
+        const items = raws.filter((r) => r.titulo).map((r) => toItem(r)).filter((x): x is Item => !!x && !(x.inscricoes_ate && x.inscricoes_ate < hoje))
+        await admin.from('concurso_fontes').update({ ultimo_status: diag.get(f.id) ?? 'ok', ultimo_total: items.length + raws.filter((r) => !r.titulo).length, atualizado_em: new Date().toISOString() }).eq('id', f.id)
         return items
       } catch (e) {
         erros[f.nome] = String(e instanceof Error ? e.message : e)
@@ -140,7 +180,7 @@ async function varrer(origem: 'cron' | 'app') {
 
   await admin.from('concurso_execucoes').insert({ origem, encontrados: items.length, novos: novos.length, erros: Object.keys(erros).length ? erros : null })
   let avisados = 0
-  if (origem === 'cron') avisados = await alertar(novos, (antes ?? 0) === 0).catch((e) => ((erros['alerta'] = String(e)), 0))
+  if (avisar) avisados = await alertar(novos, (antes ?? 0) === 0).catch((e) => ((erros['alerta'] = String(e)), 0))
   return { encontrados: items.length, novos: novos.length, avisados, erros }
 }
 
@@ -203,7 +243,11 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method' }, 405)
   try {
     const { data: cfg } = await admin.rpc('reminder_config').single<{ cron_secret: string }>()
-    if (cfg?.cron_secret && safeEqual(req.headers.get('x-cron-secret') ?? '', cfg.cron_secret)) return json(await varrer('cron'))
+    if (cfg?.cron_secret && safeEqual(req.headers.get('x-cron-secret') ?? '', cfg.cron_secret)) {
+      // { "semAviso": true } roda a varredura sem notificar (para conferir as fontes)
+      const corpo = await req.json().catch(() => ({}))
+      return json(await varrer('cron', !corpo?.semAviso))
+    }
 
     const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
     const { data: u } = jwt ? await admin.auth.getUser(jwt) : { data: { user: null } }

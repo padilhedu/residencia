@@ -44,7 +44,7 @@ export function decode(s: string): string {
 }
 export const stripTags = (html: string) => decode(html.replace(/<br\s*\/?>/gi, ' · ').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim()
 /** minúsculas e sem acentos, para comparar */
-export const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+export const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
 // ── classificação ──
 const DENT = /\b(dentista|odontolog|odontopediatr|endodont|periodont|ortodont|bucomaxilo|buco-maxilo|cirurgi[aã]o.dentista|saude bucal|estomatolog|protesista|implantodont|cd\s*esf|esb\b)/
@@ -264,4 +264,64 @@ export function parseLinks(html: string, baseUrl: string, fonte: string, hint?: 
     out.push({ titulo: l.titulo, url, fonte, texto: ctx || undefined, hint })
   })
   return out
+}
+
+// ── busca em dois níveis: listagem → página de cada concurso ──
+
+/** Links das páginas de cada concurso numa listagem (HTML) ou feed (RSS), filtrados por um padrão de URL */
+export function listLinks(body: string, baseUrl: string, padrao: string, max = 120): string[] {
+  let re: RegExp
+  try {
+    re = new RegExp(padrao, 'i')
+  } catch {
+    re = /./
+  }
+  const hrefs = /<(item|entry)\b/i.test(body)
+    ? (body.match(/<(item|entry)\b[\s\S]*?<\/\1>/gi) ?? []).map((it) => stripTags(it.match(/<link\b[^>]*>([\s\S]*?)<\/link>/i)?.[1] ?? it.match(/<link[^>]+href=["']([^"']+)["']/i)?.[1] ?? ''))
+    : [...body.matchAll(/<a\b[^>]*href=["']([^"'#]+)["']/gi)].map((m) => decode(m[1]))
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const h of hrefs) {
+    let u: string
+    try {
+      u = canonicalUrl(new URL(h.trim(), baseUrl).toString())
+    } catch {
+      continue
+    }
+    if (!/^https?:/.test(u) || seen.has(u) || !re.test(new URL(u).pathname)) continue
+    seen.add(u)
+    out.push(u)
+    if (out.length >= max) break
+  }
+  return out
+}
+
+function trecho(text: string, idx: number, antes: number, depois: number): string {
+  const ini = Math.max(0, idx - antes)
+  const fim = Math.min(text.length, idx + depois)
+  return (ini > 0 ? '…' : '') + text.slice(ini, fim).trim() + (fim < text.length ? '…' : '')
+}
+
+/** Página de um concurso: título + trechos onde aparecem o cargo e as inscrições; null se não tem a ver com Odontologia */
+export function parseDetalhe(html: string, url: string, fonte: string): Raw | null {
+  const limpo = html.replace(/<(script|style|noscript|nav|header|footer|aside|form|svg)\b[\s\S]*?<\/\1>/gi, ' ')
+  const blocos = limpo.match(/<(article|main)\b[\s\S]*?<\/\1>/gi)
+  const conteudo = blocos?.length ? blocos.reduce((a, b) => (b.length > a.length ? b : a)) : limpo
+  const h1 = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]
+  const tt = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]
+  const titulo = stripTags(h1 || tt || '').replace(/\s*[·|–-]\s*(JC Concursos|Ache Concursos|Concursos no Brasil|PCI Concursos)\s*$/i, '').trim()
+  if (!titulo) return null
+  const texto = stripTags(conteudo)
+  const n = norm(texto)
+  const dm = n.search(DENT)
+  const ehResid = RESID.test(n) && (dm >= 0 || MULTI.test(n))
+  const ehEnare = ENARE.test(norm(titulo))
+  if (dm < 0 && !ehResid && !ehEnare) return null
+  // só auxiliar/técnico em saúde bucal não conta
+  if (dm >= 0 && !DENT.test(n.replace(AUX, ' ')) && !ehResid && !ehEnare) return null
+  const partes: string[] = []
+  if (dm >= 0) partes.push(trecho(texto, dm, 200, 250))
+  const im = n.search(/inscri[cç](?:o|oe)es?[^.]{0,80}?(?:ate|a)\s*(?:o dia\s*)?\d{1,2}(?:\/| de )/)
+  if (im >= 0) partes.push(trecho(texto, im, 0, 160))
+  return { titulo, url, fonte, texto: partes.join(' '), dentista: dm >= 0 && !ehResid && !ehEnare ? true : undefined }
 }

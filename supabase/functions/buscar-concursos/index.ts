@@ -1,11 +1,11 @@
-// Radar de concursos: varre as fontes (PCI Concursos, Google Notícias, páginas oficiais), filtra o que interessa a
+// Radar de concursos: varre sites de concursos (listagens → página de cada concurso), filtra o que interessa a
 // cirurgiões-dentistas (concursos em SC, ENARE e residências em Odontologia) e grava na tabela public.concursos.
 // - pg_cron chama toda segunda-feira (cabeçalho x-cron-secret) e manda o resumo semanal por Web Push
 //   para todo aparelho com notificações ativadas (exceto quem desligou o aviso de concursos).
 // - O app chama com o JWT do usuário ({ refresh: true }) para atualizar na hora (no máximo a cada 15 min).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { sendPush, type Vapid } from '../send-reminders/webpush.ts'
-import { dedupe, parseLinks, parsePci, parseRss, toItem, type Categoria, type Item, type Raw } from './parse.ts'
+import { dedupe, hashId, listLinks, parseDetalhe, parseLinks, parsePci, parseRss, toItem, ufOf, type Categoria, type Item, type Raw } from './parse.ts'
 import { resumoSemanal, type Ativo } from './resumo.ts'
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
@@ -21,8 +21,9 @@ const json = (data: unknown, status = 200) => new Response(JSON.stringify(data),
 interface Fonte {
   id: number
   nome: string
-  tipo: 'pci' | 'rss' | 'links'
+  tipo: 'pci' | 'rss' | 'links' | 'lista'
   url: string
+  padrao: string | null
   dica: Categoria | null
   so_dentista: boolean
   uf: string | null
@@ -30,9 +31,9 @@ interface Fonte {
 
 const UA = 'Mozilla/5.0 (compatible; RadarConcursosOdonto/1.0)'
 
-async function baixar(url: string): Promise<string> {
+async function baixar(url: string, ms = 20000): Promise<string> {
   const ctl = new AbortController()
-  const t = setTimeout(() => ctl.abort(), 20000)
+  const t = setTimeout(() => ctl.abort(), ms)
   try {
     const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'pt-BR,pt;q=0.9' }, signal: ctl.signal, redirect: 'follow' })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -47,7 +48,43 @@ async function baixar(url: string): Promise<string> {
   }
 }
 
-async function varrerFonte(f: Fonte): Promise<Raw[]> {
+// Todas as páginas de concurso abertas na varredura não podem passar do limite de tempo da Edge Function
+const PRAZO_MS = 110_000
+let inicio = Date.now()
+
+/** Executa fn em cada item com no máximo `n` ao mesmo tempo, parando de iniciar novos ao estourar o prazo */
+async function emLotes<T, R>(lista: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = []
+  let i = 0
+  await Promise.all(
+    Array.from({ length: n }, async () => {
+      while (i < lista.length && Date.now() - inicio < PRAZO_MS) {
+        const x = lista[i++]
+        try {
+          out.push(await fn(x))
+        } catch {
+          /* página com erro: segue */
+        }
+      }
+    })
+  )
+  return out
+}
+
+/** Listagem → abre cada concurso e procura o cargo de dentista / residência na página */
+async function varrerLista(f: Fonte, conhecidos: Set<string>): Promise<Raw[]> {
+  const body = await baixar(f.url)
+  const links = listLinks(body, f.url, f.padrao ?? '.', 150)
+  if (!links.length) throw new Error('nenhum link de concurso na listagem (o site mudou?)')
+  // já está na base: não precisa abrir de novo, só marcar como ainda listado
+  const vistos: Raw[] = []
+  const abrir = links.filter((u) => (conhecidos.has(hashId(u)) ? (vistos.push({ titulo: '', url: u, fonte: f.nome }), false) : true))
+  const achados = await emLotes(abrir, 8, async (u) => parseDetalhe(await baixar(u, 15000), u, f.nome))
+  return [...vistos, ...achados.filter((r): r is Raw => !!r)]
+}
+
+async function varrerFonte(f: Fonte, conhecidos: Set<string>): Promise<Raw[]> {
+  if (f.tipo === 'lista') return (await varrerLista(f, conhecidos)).map((r) => ({ ...r, hint: r.hint ?? f.dica ?? undefined, uf: r.uf ?? (r.titulo ? ufOf(r.titulo) : null) ?? f.uf ?? undefined }))
   const body = await baixar(f.url)
   const raws = f.tipo === 'pci' ? parsePci(body, f.nome) : f.tipo === 'rss' ? parseRss(body, f.nome) : parseLinks(body, f.url, f.nome, f.dica ?? undefined)
   return raws.map((r) => ({
@@ -59,15 +96,21 @@ async function varrerFonte(f: Fonte): Promise<Raw[]> {
 }
 
 async function varrer(origem: 'cron' | 'app') {
-  const { data: fontes, error } = await admin.from('concurso_fontes').select('id,nome,tipo,url,dica,so_dentista,uf').eq('ativo', true).order('id')
+  inicio = Date.now()
+  const { data: fontes, error } = await admin.from('concurso_fontes').select('id,nome,tipo,url,padrao,dica,so_dentista,uf').eq('ativo', true).order('id')
   if (error) throw error
+  const { data: base } = await admin.from('concursos').select('id')
+  const conhecidos = new Set((base ?? []).map((r) => r.id as string))
   const erros: Record<string, string> = {}
+  const jaVistos: string[] = []
   const porFonte = await Promise.all(
     ((fontes ?? []) as Fonte[]).map(async (f) => {
       try {
-        const raws = await varrerFonte(f)
-        const items = raws.map((r) => toItem(r)).filter((x): x is Item => !!x)
-        await admin.from('concurso_fontes').update({ ultimo_status: 'ok', ultimo_total: items.length, atualizado_em: new Date().toISOString() }).eq('id', f.id)
+        const raws = await varrerFonte(f, conhecidos)
+        // links já conhecidos (sem título) só renovam o "visto_em"
+        for (const r of raws) if (!r.titulo) jaVistos.push(hashId(r.url))
+        const items = raws.filter((r) => r.titulo).map((r) => toItem(r)).filter((x): x is Item => !!x)
+        await admin.from('concurso_fontes').update({ ultimo_status: 'ok', ultimo_total: items.length + raws.filter((r) => !r.titulo).length, atualizado_em: new Date().toISOString() }).eq('id', f.id)
         return items
       } catch (e) {
         erros[f.nome] = String(e instanceof Error ? e.message : e)
@@ -92,7 +135,7 @@ async function varrer(origem: 'cron' | 'app') {
     if (e) throw e
   }
   const agora = new Date().toISOString()
-  const velhos = ids.filter((id) => existentes.has(id))
+  const velhos = [...new Set([...ids.filter((id) => existentes.has(id)), ...jaVistos])]
   for (let i = 0; i < velhos.length; i += 200) await admin.from('concursos').update({ visto_em: agora }).in('id', velhos.slice(i, i + 200))
 
   await admin.from('concurso_execucoes').insert({ origem, encontrados: items.length, novos: novos.length, erros: Object.keys(erros).length ? erros : null })

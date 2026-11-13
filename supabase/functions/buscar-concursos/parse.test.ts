@@ -93,3 +93,31 @@ describe('links de página', () => {
     expect(classify(raw('Prefeitura de Lages - SC', '2 vagas'))).toBeNull()
   })
 })
+
+describe('busca em dois níveis', () => {
+  it('pega só os links de concurso da listagem (HTML e RSS)', async () => {
+    const { listLinks } = await import('./parse')
+    const html = `<a href="/concurso/prefeitura-de-lages-sc-123">Lages</a><a href="/concurso/prefeitura-de-lages-sc-123">dup</a>
+      <a href="/noticia/concursos/x-1">notícia</a><a href="https://jcconcursos.com.br/concurso/udesc-456?utm_source=x">UDESC</a>`
+    expect(listLinks(html, 'https://jcconcursos.com.br/concursos/sc', '^/concurso/[a-z0-9-]+-[0-9]+/?$')).toEqual([
+      'https://jcconcursos.com.br/concurso/prefeitura-de-lages-sc-123',
+      'https://jcconcursos.com.br/concurso/udesc-456'
+    ])
+    const rss = `<rss><item><title>a</title><link>https://concursosnobrasil.com/concursos/sc/2026/11/10/a/</link></item></rss>`
+    expect(listLinks(rss, 'https://concursosnobrasil.com/concursos/sc/feed/', '^/concursos/sc/')).toEqual(['https://concursosnobrasil.com/concursos/sc/2026/11/10/a/'])
+  })
+  it('lê a página do concurso: cargo de dentista e prazo; ignora sem Odontologia', async () => {
+    const { parseDetalhe } = await import('./parse')
+    const pag = `<html><title>Concurso Prefeitura de Lages SC · JC Concursos</title><nav>Dentista em destaque</nav>
+      <h1>Concurso Prefeitura de Lages - SC</h1><p>Cargos: Enfermeiro (2 vagas), Cirurgião-Dentista ESF (1 vaga), salário de R$ 9.100,00.</p>
+      <p>As inscrições vão até 12/12/2026 pelo site da banca.</p></html>`
+    const r = parseDetalhe(pag, 'https://x/concurso/lages-1', 'JC')!
+    expect(r.titulo).toBe('Concurso Prefeitura de Lages - SC')
+    expect(r.dentista).toBe(true)
+    expect(toItem({ ...r, uf: 'SC' }, ref)).toMatchObject({ categoria: 'sc', inscricoes_ate: '2026-12-12', salario: 'R$ 9.100,00' })
+    expect(parseDetalhe('<h1>Câmara de Tubarão - SC</h1><p>Cargos: Contador. <nav>dentista</nav></p>', 'u', 'JC')).toBeNull()
+    expect(parseDetalhe('<h1>Prefeitura X</h1><p>Auxiliar de Saúde Bucal (2 vagas)</p>', 'u', 'JC')).toBeNull()
+    const res = parseDetalhe('<h1>HU-UFSC seleciona residentes</h1><article><p>Residência Multiprofissional em Saúde: vagas para Odontologia.</p></article>', 'u', 'Ache')!
+    expect(classify({ ...res, uf: 'SC' })?.categoria).toBe('residencia')
+  })
+})

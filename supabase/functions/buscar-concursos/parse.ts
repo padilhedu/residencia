@@ -81,7 +81,8 @@ export function classify(r: Raw): { categoria: Categoria; uf: string | null } | 
   if (r.hint === 'enare' || ENARE.test(tr)) return { categoria: 'enare', uf }
   if (r.hint === 'residencia' && (dent || RESID.test(t) || /edital|processo seletivo/.test(t))) return { categoria: 'residencia', uf }
   if (RESID.test(tr) && (dent || MULTI.test(t))) return { categoria: 'residencia', uf }
-  if (dent && (uf === 'SC' || SC_CIDADE.test(t))) return { categoria: 'sc', uf: 'SC' }
+  // cidade de SC no texto só decide quando o estado não foi identificado ("São José do Inhacorá-RS" não é SC)
+  if (dent && (uf === 'SC' || (!uf && SC_CIDADE.test(t)))) return { categoria: 'sc', uf: 'SC' }
   return null
 }
 

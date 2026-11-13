@@ -50,10 +50,14 @@ O gabarito definitivo do **ENARE 2026/27** (FGV) ainda não saiu (previsto para 
 
 ### Radar de concursos
 
-- A Edge Function [`buscar-concursos`](supabase/functions/buscar-concursos/index.ts) roda **toda segunda-feira às 07h23** (pg_cron) e varre os **sites de concursos** da tabela `concurso_fontes`: PCI Concursos (SC, Sul e páginas dos cargos dentista/cirurgião-dentista/odontólogo), Concursos no Brasil (feed de SC e buscas por dentista, residência e ENARE), JC Concursos, Ache Concursos e Atlas Público (SC), Folha Dirigida (cargo dentista), SES/SC e a página oficial do ENARE na Ebserh.
-- O filtro ([`parse.ts`](supabase/functions/buscar-concursos/parse.ts), testado em `parse.test.ts`) guarda só: concursos de dentista **em SC**, tudo do **ENARE** e **residências** com Odontologia/bucomaxilo/saúde bucal ou multiprofissionais (qualquer estado). Descarta auxiliar/técnico em saúde bucal, resultados e gabaritos; junta repetidos e extrai vagas, salário e prazo de inscrição. Em páginas de listagem, lê o texto logo depois de cada link (cargos, prazo) para decidir.
-- **Aviso semanal**: logo após a varredura, cada aparelho com notificações ativadas recebe um resumo ([`resumo.ts`](supabase/functions/buscar-concursos/resumo.ts)) com os editais novos e as inscrições que encerram em 7 dias — ligado por padrão, dá para escolher categorias ou desligar na aba Concursos. O botão **Testar aviso agora** manda o resumo na hora para o próprio usuário.
-- Os editais ficam em `concursos` (leitura pública, escrita só pela função). Para incluir/corrigir uma fonte, edite `concurso_fontes` no painel do Supabase (tipos `pci`, `rss` ou `links`; `so_dentista` para páginas que só listam vagas de dentista; `uf` para fontes de um estado); para esconder um falso positivo para todos, marque `oculto = true` em `concursos`. O resultado de cada fonte fica em `ultimo_status`/`ultimo_total` e cada varredura em `concurso_execucoes`.
+- A Edge Function [`buscar-concursos`](supabase/functions/buscar-concursos/index.ts) roda **toda segunda-feira às 07h23** (pg_cron). As listagens dos sites mostram só o órgão, então para cada fonte do tipo `lista` ela **abre a página de cada concurso** e procura o cargo lá dentro:
+  - **Ache Concursos** (SC e "abertos no Brasil", para residências), **JC Concursos** (SC e nacionais, para ENARE/Ebserh), **Concursos no Brasil** (feed de SC) e a página da **SES/SC** (PSS da residência multiprofissional).
+  - A Ache responde 429 se receber muitas requisições: ela é lida uma página por vez, com pausa (`paralelo`/`pausa_ms` em `concurso_fontes`), e a varredura para ao primeiro 429.
+  - Páginas já verificadas ficam em `concurso_paginas` e não são reabertas por 120 dias. Toda semana só os concursos novos são abertos; a carga inicial se completa em poucas execuções.
+  - Ficaram desligadas (testadas em 13/11/2026): PCI Concursos (recusa conexões de servidores), Atlas Público (Cloudflare), Folha Dirigida e página antiga do ENARE (404), buscas do Concursos no Brasil (não filtram) e Google Notícias.
+- O filtro ([`parse.ts`](supabase/functions/buscar-concursos/parse.ts), testado em `parse.test.ts`) guarda: vaga de **dentista/odontólogo em SC** (com inscrições abertas), **ENARE** e **residências** (quando são o assunto da página). Ignora texto de links (ex.: "Prova ... Dentista" na JC), cargos auxiliares/técnicos em saúde bucal, "avaliação médica e odontológica" (exame), "plano odontológico" (benefício) e o registro no CRO exigido de auxiliares.
+- **Aviso semanal**: logo após a varredura, cada aparelho com notificações ativadas recebe um resumo ([`resumo.ts`](supabase/functions/buscar-concursos/resumo.ts)) com os editais novos e as inscrições que encerram em 7 dias — ligado por padrão; dá para escolher categorias ou desligar na aba Concursos. **Testar aviso agora** manda o resumo na hora.
+- Diagnóstico: `concurso_fontes.ultimo_status` mostra, por fonte, quantos links havia, quantos foram abertos e se houve erro; cada varredura fica em `concurso_execucoes`. Para conferir sem notificar ninguém, chame a função com o cabeçalho do cron e o corpo `{"semAviso": true}`. Para esconder um falso positivo, marque `oculto = true` em `concursos`.
 - Com login, **Buscar agora** força uma varredura (no máximo a cada 15 min, sem notificação).
 
 ## Estrutura
@@ -109,7 +113,7 @@ Em **Authentication → URL Configuration**, defina o **Site URL** como o endere
 ## Publicar o radar de concursos (uma vez)
 
 ```bash
-supabase db push                                  # aplica as migrations 20261113000001/2 (concursos)
+supabase db push                                  # aplica as migrations 20261113000001…4 (concursos)
 supabase functions deploy buscar-concursos        # usa os segredos do Vault já criados para o lembrete
 ```
 

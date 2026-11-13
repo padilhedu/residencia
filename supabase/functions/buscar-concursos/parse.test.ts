@@ -11,6 +11,7 @@ describe('classificação', () => {
     expect(classify(raw('Concurso Santa Catarina: dentista 40h'))?.categoria).toBe('sc')
   })
   it('dentista fora de SC é descartado (concursos só de SC)', () => {
+    expect(classify(raw('Concurso São José do Inhacorá-RS 2026', 'Odontólogo (1)', { uf: 'RS', dentista: true }))).toBeNull()
     expect(classify(raw('Prefeitura de Curitiba - PR abre vagas para dentista'))).toBeNull()
   })
   it('ENARE e residências em qualquer estado', () => {

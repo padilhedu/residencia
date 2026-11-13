@@ -129,10 +129,10 @@ main.page {
   background: var(--surface); border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
 }
-.tabbar-in { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); height: var(--nav-h); }
+.tabbar-in { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: repeat(6, 1fr); height: var(--nav-h); }
 .tabbar a {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  text-decoration: none; color: var(--ink-faint); font-size: 11px; font-weight: 650; position: relative;
+  text-decoration: none; color: var(--ink-faint); font-size: 10.5px; font-weight: 650; position: relative; min-width: 0; letter-spacing: -0.1px;
 }
 .tabbar a[aria-current='page'] { color: var(--petrol); }
 .tabbar a[aria-current='page']::before {
@@ -227,7 +227,7 @@ details.fold summary::-webkit-details-marker { display: none; }
 details.fold summary::after { content: ' ▾'; }
 details.fold[open] summary::after { content: ' ▴'; }
 
-input[type='date'], input[type='number'], input[type='email'], input[type='password'], select, textarea {
+input[type='date'], input[type='number'], input[type='email'], input[type='password'], input[type='search'], select, textarea {
   font: inherit; font-size: 16px; color: var(--ink); background: var(--surface-2);
   border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; width: 100%;
 }

@@ -39,7 +39,7 @@ export interface Attempt {
   synced?: boolean
 }
 
-export type StateKind = 'star' | 'note' | 'override' | 'plan' | 'settings' | 'topic' | 'errtype' | 'card' | 'official' | 'forecast'
+export type StateKind = 'star' | 'note' | 'override' | 'plan' | 'settings' | 'topic' | 'errtype' | 'card' | 'official' | 'forecast' | 'concurso' | 'alert'
 
 export interface StateEntry {
   kind: StateKind

@@ -29,6 +29,8 @@ export interface Raw {
   publicado_em?: string | null
   /** Fonte dedicada a uma categoria (ex.: página oficial do ENARE) */
   hint?: Categoria
+  /** Fonte que só lista vagas de dentista (ex.: página do cargo no PCI) */
+  dentista?: boolean
 }
 
 // ── utilidades de texto ──
@@ -70,11 +72,12 @@ export function classify(r: Raw): { categoria: Categoria; uf: string | null } | 
   if (NOISE.test(titleN)) return null
   // só auxiliar/técnico em saúde bucal (sem vaga de dentista) não interessa
   const semAux = t.replace(AUX, ' ')
-  if (semAux !== t && !DENT.test(semAux)) return null
+  if (!r.dentista && semAux !== t && !DENT.test(semAux)) return null
+  const dent = !!r.dentista || DENT.test(t)
   if (r.hint === 'enare' || ENARE.test(t)) return { categoria: 'enare', uf }
-  if (r.hint === 'residencia' && (DENT.test(t) || RESID.test(t) || /edital|processo seletivo/.test(t))) return { categoria: 'residencia', uf }
-  if (RESID.test(t) && (DENT.test(t) || MULTI.test(t))) return { categoria: 'residencia', uf }
-  if (DENT.test(t) && (uf === 'SC' || SC_CIDADE.test(t))) return { categoria: 'sc', uf: 'SC' }
+  if (r.hint === 'residencia' && (dent || RESID.test(t) || /edital|processo seletivo/.test(t))) return { categoria: 'residencia', uf }
+  if (RESID.test(t) && (dent || MULTI.test(t))) return { categoria: 'residencia', uf }
+  if (dent && (uf === 'SC' || SC_CIDADE.test(t))) return { categoria: 'sc', uf: 'SC' }
   return null
 }
 
@@ -234,23 +237,31 @@ export function parseRss(xml: string, fonte = 'RSS'): Raw[] {
   return out
 }
 
-/** Página qualquer: todos os links cujo texto (ou o trecho ao redor) fala do assunto */
+/** Página qualquer de site de concursos: cada link relevante, com o texto que vem logo depois dele
+ *  (cargos, vagas, prazo) até o próximo link de destaque */
 export function parseLinks(html: string, baseUrl: string, fonte: string, hint?: Categoria): Raw[] {
   const out: Raw[] = []
+  const body = html.replace(/<(script|style|nav|footer|header)\b[\s\S]*?<\/\1>/gi, ' ')
   const re = /<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi
-  for (const m of html.matchAll(re)) {
-    const titulo = stripTags(m[2])
-    if (titulo.length < 12 || titulo.length > 300) continue
-    const n = norm(titulo)
-    if (!(DENT.test(n) || ENARE.test(n) || RESID.test(n) || /edital|processo seletivo|concurso/.test(n))) continue
+  const links = [...body.matchAll(re)].map((m) => ({ href: m[1], titulo: stripTags(m[2]), start: m.index!, end: m.index! + m[0].length }))
+  const destaque = links.filter((l) => l.titulo.length >= 12 && l.titulo.length <= 300)
+  const vistos = new Set<string>()
+  destaque.forEach((l, i) => {
+    const prox = destaque[i + 1]?.start ?? Math.min(body.length, l.end + 3000)
+    const ctx = stripTags(body.slice(l.end, Math.min(prox, l.end + 3000))).slice(0, 400)
+    const n = norm(l.titulo)
+    const nc = norm(ctx)
+    const relevante = DENT.test(n) || ENARE.test(n) || RESID.test(n) || DENT.test(nc) || ENARE.test(nc) || (RESID.test(nc) && MULTI.test(nc)) || (!!hint && /edital|processo seletivo|concurso|inscri/.test(n))
+    if (!relevante) return
     let url: string
     try {
-      url = new URL(decode(m[1]), baseUrl).toString()
+      url = new URL(decode(l.href), baseUrl).toString()
     } catch {
-      continue
+      return
     }
-    if (!/^https?:/.test(url)) continue
-    out.push({ titulo, url, fonte, hint })
-  }
+    if (!/^https?:/.test(url) || vistos.has(url)) return
+    vistos.add(url)
+    out.push({ titulo: l.titulo, url, fonte, texto: ctx || undefined, hint })
+  })
   return out
 }

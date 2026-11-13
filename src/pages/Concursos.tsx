@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  CATEGORIAS, FONTES_MANUAIS, alertOf, ativo, loadConcursos, refreshConcursos, setTrack, situacao, trackOf, useConcursos,
+  CATEGORIAS, FONTES_MANUAIS, alertOf, ativo, loadConcursos, refreshConcursos, setTrack, situacao, testarAviso, trackOf, useConcursos,
   type Categoria, type Concurso
 } from '../lib/concursos'
 import { useData, store } from '../lib/store'
@@ -89,7 +89,7 @@ export function Concursos() {
           <div>
             <h2 style={{ marginBottom: 2 }}>Radar de concursos</h2>
             <div className="faint">
-              Concursos para cirurgião-dentista em SC, ENARE e residências em Odontologia. Busca automática 2x por dia.
+              Concursos para cirurgião-dentista em SC, ENARE e residências em Odontologia, buscados nos sites de concursos (PCI, Concursos no Brasil, JC, Ache Concursos, Folha Dirigida…) <b>toda segunda-feira</b>.
               {loadedAt && <> Atualizado {new Date(loadedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}.</>}
             </div>
           </div>
@@ -102,6 +102,8 @@ export function Concursos() {
         </div>
         {error && <div className="alert">Não consegui carregar: {error}. Mostrando a última lista salva.</div>}
       </div>
+
+      <Alerta />
 
       <div className="chips scroll" style={{ marginBottom: 10 }}>
         {(['todas', 'sc', 'enare', 'residencia', 'acompanhando'] as Filtro[]).map((f) => (
@@ -123,17 +125,16 @@ export function Concursos() {
       {lista.length === 0 ? (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
-            {loading ? 'Carregando…' : items.length === 0 ? 'Nenhum edital na base ainda. A primeira varredura acontece no próximo horário agendado (07h23 ou 18h23) ou quando você tocar em “Buscar agora”.' : 'Nada com esses filtros no momento.'}
+            {loading ? 'Carregando…' : items.length === 0 ? 'Nenhum edital na base ainda. A primeira varredura acontece na próxima segunda-feira (07h23) ou quando você tocar em “Buscar agora”.' : 'Nada com esses filtros no momento.'}
           </p>
         </div>
       ) : (
         lista.map((c) => <Item key={c.id} c={c} />)
       )}
 
-      <Alerta />
       <Fontes />
       <p className="faint" style={{ margin: '4px 2px 12px' }}>
-        Os itens vêm de buscas automáticas em sites de notícias e agregadores: <b>confira sempre o edital oficial</b> (prazos, requisitos e se há vaga para Odontologia).
+        Os itens vêm de buscas automáticas em sites de concursos: <b>confira sempre o edital oficial</b> (prazos, requisitos e se há vaga para Odontologia).
       </p>
     </>
   )
@@ -182,39 +183,69 @@ function Alerta() {
   const { user } = useAuth()
   const a = alertOf(d)
   const [busy, setBusy] = useState(false)
-  if (!user) return null
-  const toggle = async () => {
+  const [inscrito, setInscrito] = useState<boolean | null>(null)
+  useEffect(() => {
+    currentSubscription().then((s) => setInscrito(!!s)).catch(() => setInscrito(false))
+  }, [user])
+  if (!user) {
+    return (
+      <div className="card">
+        <h2>Aviso semanal no celular</h2>
+        <p className="muted" style={{ margin: 0 }}>Entre na sua conta em <a href="#/ajustes">Ajustes</a> para receber toda segunda-feira os editais novos da semana.</p>
+      </div>
+    )
+  }
+  const run = async (fn: () => Promise<void>) => {
     setBusy(true)
     try {
-      if (!a.on && !(await currentSubscription())) await enableReminders(19)
-      store.setState('alert', 'concursos', { ...a, on: !a.on })
-      toast(a.on ? 'Alertas de concursos desligados' : 'Você será avisado quando surgir edital novo')
+      await fn()
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
     }
   }
+  const ativar = () => run(async () => {
+    await enableReminders(19)
+    setInscrito(true)
+    store.setState('alert', 'concursos', { ...a, on: true })
+    toast('Pronto! Toda segunda você recebe os editais novos.')
+  })
+  const testar = () => run(async () => {
+    const n = await testarAviso()
+    toast(n ? 'Notificação de teste enviada — confira o celular' : 'Nenhum aparelho recebeu. Ative as notificações neste aparelho.')
+  })
   const setCat = (cat: Categoria) => {
     const cats = a.categorias.includes(cat) ? a.categorias.filter((x) => x !== cat) : [...a.categorias, cat]
     if (cats.length) store.setState('alert', 'concursos', { ...a, categorias: cats })
   }
   return (
     <div className="card">
-      <h2>Avisar quando surgir edital novo</h2>
-      <p className="muted" style={{ marginTop: 0 }}>Notificação no celular logo depois da varredura (07h23 e 18h23) que encontrar editais novos.</p>
+      <div className="row between">
+        <h2 style={{ margin: 0 }}>Aviso semanal no celular</h2>
+        {inscrito && a.on && <span className="tag ok">ligado</span>}
+      </div>
+      <p className="muted">Toda <b>segunda-feira, por volta das 07h30</b>, uma notificação com os editais novos da semana e as inscrições que encerram em até 7 dias.</p>
       {!pushSupported() ? (
-        <div className="alert">Este navegador não suporta notificações.</div>
+        <div className="alert">Este navegador não suporta notificações. Abra o app no celular.</div>
       ) : isIOS() && !isStandalone() ? (
-        <div className="alert">No iPhone, instale o app na Tela de Início (Compartilhar → Adicionar à Tela de Início) para receber avisos.</div>
+        <div className="alert">No iPhone, instale o app na Tela de Início (Compartilhar → Adicionar à Tela de Início), abra por lá e volte aqui para ativar.</div>
+      ) : inscrito === false ? (
+        <button className="btn primary block" disabled={busy} onClick={ativar}>Ativar notificações neste aparelho</button>
       ) : (
         <>
+          <div className="faint" style={{ marginBottom: 6 }}>Avisar sobre:</div>
           <div className="chips" style={{ marginBottom: 10 }}>
             {CATEGORIAS.map((c) => (
-              <button key={c.id} className="chip" aria-pressed={a.categorias.includes(c.id)} onClick={() => setCat(c.id)}>{c.nome}</button>
+              <button key={c.id} className="chip" aria-pressed={a.categorias.includes(c.id)} disabled={!a.on} onClick={() => setCat(c.id)}>{c.nome}</button>
             ))}
           </div>
-          <button className={`btn small ${a.on ? '' : 'primary'}`} disabled={busy} onClick={toggle}>{a.on ? 'Desligar alertas' : 'Ligar alertas'}</button>
+          <div className="row wrap">
+            {a.on && <button className="btn small" disabled={busy} onClick={testar}>Testar aviso agora</button>}
+            <button className={`btn small ${a.on ? 'ghost' : 'primary'}`} disabled={busy} onClick={() => store.setState('alert', 'concursos', { ...a, on: !a.on })}>
+              {a.on ? 'Desligar aviso' : 'Ligar aviso'}
+            </button>
+          </div>
         </>
       )}
     </div>

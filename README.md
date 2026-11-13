@@ -17,7 +17,7 @@ Funciona no celular como app instalado e **sem internet**. Com login, o progress
 | **Gabaritos** (`#/gabaritos`) | Gabaritos definitivos das bancas, questões anuladas e onde a banca diverge da resolução de estudo; importador para o ENARE |
 | **Flashcards** (`#/cards`) | Cartões automáticos das questões que você errou + baralho de lei seca (CF, 8.080, 8.142, 7.508, LC 141, PNAB, saúde bucal, exercício profissional), com revisão espaçada própria |
 
-| **Concursos** | **Radar de editais** para cirurgião-dentista: concursos em **SC**, **ENARE** e **residências em Odontologia** (uni e multiprofissionais) no Brasil. Busca automática 2x por dia, filtros, prazo de inscrição, acompanhar/inscrito/ocultar e **alerta no celular** quando surge edital novo |
+| **Concursos** | **Radar de editais** para cirurgião-dentista: concursos em **SC**, **ENARE** e **residências em Odontologia** (uni e multiprofissionais) no Brasil. Busca **semanal** nos sites de concursos, filtros, prazo de inscrição, acompanhar/inscrito/ocultar e **aviso no celular toda segunda** com os editais novos |
 
 Também: **tempo médio por questão em cada tema** (Revisão), comparado ao ritmo das provas (ENARE 3 min/questão; FDT 4 min/questão), e **lembrete diário no celular** (Ajustes) quando houver revisão pendente.
 
@@ -50,10 +50,11 @@ O gabarito definitivo do **ENARE 2026/27** (FGV) ainda não saiu (previsto para 
 
 ### Radar de concursos
 
-- A Edge Function [`buscar-concursos`](supabase/functions/buscar-concursos/index.ts) roda às **07h23 e 18h23** (pg_cron) e varre as fontes da tabela `concurso_fontes`: listagens do PCI Concursos (SC, Sul e cargos de dentista/odontólogo), buscas do Google Notícias (dentista em SC, ENARE, residência em Odontologia/multiprofissional) e a página oficial do ENARE.
-- O filtro ([`parse.ts`](supabase/functions/buscar-concursos/parse.ts), testado em `parse.test.ts`) guarda só: concursos de dentista **em SC**, tudo do **ENARE** e **residências** com Odontologia/bucomaxilo/saúde bucal ou multiprofissionais (qualquer estado). Descarta auxiliar/técnico em saúde bucal, resultados e gabaritos; junta a mesma notícia publicada por vários sites e extrai vagas, salário e prazo de inscrição.
-- Os editais ficam em `concursos` (leitura pública, escrita só pela função). Para incluir/corrigir uma fonte, edite `concurso_fontes` no painel do Supabase (tipos `pci`, `rss` ou `links`); para esconder um falso positivo para todos, marque `oculto = true`. O status de cada fonte fica em `ultimo_status`/`ultimo_total` e cada varredura em `concurso_execucoes`.
-- Com login, o botão **Buscar agora** força uma varredura (no máximo a cada 15 min). O alerta usa o mesmo Web Push do lembrete diário.
+- A Edge Function [`buscar-concursos`](supabase/functions/buscar-concursos/index.ts) roda **toda segunda-feira às 07h23** (pg_cron) e varre os **sites de concursos** da tabela `concurso_fontes`: PCI Concursos (SC, Sul e páginas dos cargos dentista/cirurgião-dentista/odontólogo), Concursos no Brasil (feed de SC e buscas por dentista, residência e ENARE), JC Concursos, Ache Concursos e Atlas Público (SC), Folha Dirigida (cargo dentista), SES/SC e a página oficial do ENARE na Ebserh.
+- O filtro ([`parse.ts`](supabase/functions/buscar-concursos/parse.ts), testado em `parse.test.ts`) guarda só: concursos de dentista **em SC**, tudo do **ENARE** e **residências** com Odontologia/bucomaxilo/saúde bucal ou multiprofissionais (qualquer estado). Descarta auxiliar/técnico em saúde bucal, resultados e gabaritos; junta repetidos e extrai vagas, salário e prazo de inscrição. Em páginas de listagem, lê o texto logo depois de cada link (cargos, prazo) para decidir.
+- **Aviso semanal**: logo após a varredura, cada aparelho com notificações ativadas recebe um resumo ([`resumo.ts`](supabase/functions/buscar-concursos/resumo.ts)) com os editais novos e as inscrições que encerram em 7 dias — ligado por padrão, dá para escolher categorias ou desligar na aba Concursos. O botão **Testar aviso agora** manda o resumo na hora para o próprio usuário.
+- Os editais ficam em `concursos` (leitura pública, escrita só pela função). Para incluir/corrigir uma fonte, edite `concurso_fontes` no painel do Supabase (tipos `pci`, `rss` ou `links`; `so_dentista` para páginas que só listam vagas de dentista; `uf` para fontes de um estado); para esconder um falso positivo para todos, marque `oculto = true` em `concursos`. O resultado de cada fonte fica em `ultimo_status`/`ultimo_total` e cada varredura em `concurso_execucoes`.
+- Com login, **Buscar agora** força uma varredura (no máximo a cada 15 min, sem notificação).
 
 ## Estrutura
 
@@ -108,7 +109,7 @@ Em **Authentication → URL Configuration**, defina o **Site URL** como o endere
 ## Publicar o radar de concursos (uma vez)
 
 ```bash
-supabase db push                                  # aplica supabase/migrations/20261113000001_concursos.sql
+supabase db push                                  # aplica as migrations 20261113000001/2 (concursos)
 supabase functions deploy buscar-concursos        # usa os segredos do Vault já criados para o lembrete
 ```
 

@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 import { store, valueOf, type Data } from './store'
 import { todayISO } from './dates'
 
-// Radar de concursos: lê a tabela pública `concursos` (preenchida 2x por dia pela Edge Function buscar-concursos)
+// Radar de concursos: lê a tabela pública `concursos` (preenchida toda segunda pela Edge Function buscar-concursos)
 // e guarda uma cópia no aparelho para abrir sem internet.
 
 export type Categoria = 'sc' | 'enare' | 'residencia'
@@ -47,7 +47,9 @@ export const FONTES_MANUAIS: { nome: string; url: string; cat: Categoria | 'toda
   { nome: 'Secretaria de Estado da Saúde de SC', url: 'https://www.saude.sc.gov.br/', cat: 'sc' },
   { nome: 'CRO-SC', url: 'https://www.crosc.org.br/', cat: 'sc' },
   { nome: 'Fundatec (FDT e outras residências)', url: 'https://www.fundatec.org.br/', cat: 'residencia' },
-  { nome: 'Google — residência em Odontologia (último mês)', url: 'https://www.google.com/search?tbs=qdr:m&q=resid%C3%AAncia+odontologia+edital+inscri%C3%A7%C3%B5es', cat: 'residencia' }
+  { nome: 'Concursos no Brasil — SC', url: 'https://concursosnobrasil.com/concursos/sc/', cat: 'sc' },
+  { nome: 'JC Concursos — SC', url: 'https://jcconcursos.com.br/concursos/sc', cat: 'sc' },
+  { nome: 'PCI Concursos — cargo Dentista (Brasil)', url: 'https://www.pciconcursos.com.br/cargos/dentista', cat: 'residencia' }
 ]
 
 const CACHE_KEY = 'residencia-odonto:concursos'
@@ -157,4 +159,16 @@ export interface AlertPrefs {
   on: boolean
   categorias: Categoria[]
 }
-export const alertOf = (d: Data): AlertPrefs => valueOf<AlertPrefs>(d, 'alert', 'concursos') ?? { on: false, categorias: ['sc', 'enare', 'residencia'] }
+/** Aviso semanal: ligado por padrão para quem ativou notificações no aparelho */
+export function alertOf(d: Data): AlertPrefs {
+  const v = valueOf<Partial<AlertPrefs>>(d, 'alert', 'concursos')
+  return { on: v?.on ?? true, categorias: v?.categorias?.length ? v.categorias : ['sc', 'enare', 'residencia'] }
+}
+
+/** Manda agora, só para mim, o resumo da semana (para conferir se o aviso chega) */
+export async function testarAviso(): Promise<number> {
+  if (!supabase) throw new Error('Supabase não configurado.')
+  const { data, error } = await supabase.functions.invoke('buscar-concursos', { body: { teste: true } })
+  if (error) throw new Error(error.message)
+  return Number(data?.aparelhos ?? 0)
+}

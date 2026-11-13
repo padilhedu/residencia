@@ -1,10 +1,12 @@
 // Radar de concursos: varre as fontes (PCI Concursos, Google Notícias, páginas oficiais), filtra o que interessa a
 // cirurgiões-dentistas (concursos em SC, ENARE e residências em Odontologia) e grava na tabela public.concursos.
-// - pg_cron chama 2x por dia com o cabeçalho x-cron-secret; avisa por Web Push quem ligou o alerta.
+// - pg_cron chama toda segunda-feira (cabeçalho x-cron-secret) e manda o resumo semanal por Web Push
+//   para todo aparelho com notificações ativadas (exceto quem desligou o aviso de concursos).
 // - O app chama com o JWT do usuário ({ refresh: true }) para atualizar na hora (no máximo a cada 15 min).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { sendPush, type Vapid } from '../send-reminders/webpush.ts'
 import { dedupe, parseLinks, parsePci, parseRss, toItem, type Categoria, type Item, type Raw } from './parse.ts'
+import { resumoSemanal, type Ativo } from './resumo.ts'
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false, autoRefreshToken: false }
@@ -22,6 +24,8 @@ interface Fonte {
   tipo: 'pci' | 'rss' | 'links'
   url: string
   dica: Categoria | null
+  so_dentista: boolean
+  uf: string | null
 }
 
 const UA = 'Mozilla/5.0 (compatible; RadarConcursosOdonto/1.0)'
@@ -45,12 +49,17 @@ async function baixar(url: string): Promise<string> {
 
 async function varrerFonte(f: Fonte): Promise<Raw[]> {
   const body = await baixar(f.url)
-  const raws = f.tipo === 'pci' ? parsePci(body, f.nome) : f.tipo === 'rss' ? parseRss(body, 'Google Notícias') : parseLinks(body, f.url, f.nome, f.dica ?? undefined)
-  return f.dica ? raws.map((r) => ({ ...r, hint: r.hint ?? f.dica! })) : raws
+  const raws = f.tipo === 'pci' ? parsePci(body, f.nome) : f.tipo === 'rss' ? parseRss(body, f.nome) : parseLinks(body, f.url, f.nome, f.dica ?? undefined)
+  return raws.map((r) => ({
+    ...r,
+    hint: r.hint ?? f.dica ?? undefined,
+    dentista: r.dentista || f.so_dentista,
+    uf: r.uf ?? f.uf ?? undefined
+  }))
 }
 
 async function varrer(origem: 'cron' | 'app') {
-  const { data: fontes, error } = await admin.from('concurso_fontes').select('id,nome,tipo,url,dica').eq('ativo', true).order('id')
+  const { data: fontes, error } = await admin.from('concurso_fontes').select('id,nome,tipo,url,dica,so_dentista,uf').eq('ativo', true).order('id')
   if (error) throw error
   const erros: Record<string, string> = {}
   const porFonte = await Promise.all(
@@ -87,38 +96,56 @@ async function varrer(origem: 'cron' | 'app') {
   for (let i = 0; i < velhos.length; i += 200) await admin.from('concursos').update({ visto_em: agora }).in('id', velhos.slice(i, i + 200))
 
   await admin.from('concurso_execucoes').insert({ origem, encontrados: items.length, novos: novos.length, erros: Object.keys(erros).length ? erros : null })
-  // na primeira varredura tudo é "novo": não dispara alerta
-  if (novos.length && (antes ?? 0) > 0) await alertar(novos).catch((e) => (erros['alerta'] = String(e)))
-  return { encontrados: items.length, novos: novos.length, erros }
+  let avisados = 0
+  if (origem === 'cron') avisados = await alertar(novos, (antes ?? 0) === 0).catch((e) => ((erros['alerta'] = String(e)), 0))
+  return { encontrados: items.length, novos: novos.length, avisados, erros }
 }
 
-const NOME: Record<Categoria, string> = { sc: 'concurso em SC', enare: 'ENARE', residencia: 'residência' }
-
-async function alertar(novos: Item[]) {
+/** Resumo semanal: editais novos da semana + os que encerram em 7 dias, por usuário (conforme as categorias escolhidas) */
+async function alertar(novos: Item[], primeira: boolean): Promise<number> {
   const { data: cfg } = await admin.rpc('reminder_config').single<{ vapid_public: string; vapid_private: string; vapid_subject: string }>()
-  if (!cfg?.vapid_private) return
+  if (!cfg?.vapid_private) return 0
   const vapid: Vapid = { publicKey: cfg.vapid_public, privateKey: cfg.vapid_private, subject: cfg.vapid_subject }
+  const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10) // data em Brasília
+  const { data: abertos } = await admin.from('concursos').select('id,categoria,titulo,inscricoes_ate').gte('inscricoes_ate', hoje)
   const { data: users } = await admin.rpc('concurso_alert_users')
+  let enviados = 0
   for (const u of (users ?? []) as { user_id: string; categorias: Categoria[] | null }[]) {
-    const cats = Array.isArray(u.categorias) && u.categorias.length ? u.categorias : (['sc', 'enare', 'residencia'] as Categoria[])
-    const meus = novos.filter((n) => cats.includes(n.categoria))
-    if (!meus.length) continue
-    const msg = {
-      title: meus.length === 1 ? `Novo ${NOME[meus[0].categoria]}` : `${meus.length} novos editais para dentistas`,
-      body: meus.slice(0, 3).map((n) => `• ${n.titulo}`).join('\n'),
-      url: '/#/concursos',
-      tag: 'concursos-novos'
-    }
-    const { data: subs } = await admin.from('push_subscriptions').select('user_id, endpoint, p256dh, auth').eq('user_id', u.user_id)
-    for (const s of subs ?? []) {
-      try {
-        const r = await sendPush(s, msg, vapid)
-        if (r.gone) await admin.from('push_subscriptions').delete().eq('user_id', s.user_id).eq('endpoint', s.endpoint)
-      } catch {
-        /* um aparelho com problema não impede os outros */
-      }
+    const msg = resumoSemanal({ novos, abertos: (abertos ?? []) as Ativo[], hoje, categorias: u.categorias, primeira })
+    if (!msg) continue
+    enviados++
+    await enviarPara(u.user_id, msg, vapid)
+  }
+  return enviados
+}
+
+async function enviarPara(userId: string, msg: unknown, vapid: Vapid): Promise<number> {
+  const { data: subs } = await admin.from('push_subscriptions').select('user_id, endpoint, p256dh, auth').eq('user_id', userId)
+  let ok = 0
+  for (const s of subs ?? []) {
+    try {
+      const r = await sendPush(s, msg, vapid)
+      if (r.ok) ok++
+      if (r.gone) await admin.from('push_subscriptions').delete().eq('user_id', s.user_id).eq('endpoint', s.endpoint)
+    } catch {
+      /* um aparelho com problema não impede os outros */
     }
   }
+  return ok
+}
+
+/** Botão "Testar aviso": manda agora, só para quem pediu, o resumo com o que entrou nos últimos 7 dias */
+async function testar(userId: string) {
+  const { data: cfg } = await admin.rpc('reminder_config').single<{ vapid_public: string; vapid_private: string; vapid_subject: string }>()
+  if (!cfg?.vapid_private) throw new Error('chaves de notificação ausentes')
+  const vapid: Vapid = { publicKey: cfg.vapid_public, privateKey: cfg.vapid_private, subject: cfg.vapid_subject }
+  const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)
+  const semana = new Date(Date.now() - 7 * 864e5).toISOString()
+  const { data: novos } = await admin.from('concursos').select('*').eq('oculto', false).gte('primeiro_visto', semana).order('primeiro_visto', { ascending: false })
+  const { data: abertos } = await admin.from('concursos').select('id,categoria,titulo,inscricoes_ate').gte('inscricoes_ate', hoje)
+  const { data: pref } = await admin.from('user_state').select('value').eq('user_id', userId).eq('kind', 'alert').eq('key', 'concursos').maybeSingle()
+  const msg = resumoSemanal({ novos: (novos ?? []) as Item[], abertos: (abertos ?? []) as Ativo[], hoje, categorias: (pref?.value as { categorias?: Categoria[] } | null)?.categorias ?? null, primeira: true })!
+  return { aparelhos: await enviarPara(userId, { ...msg, title: 'Teste: ' + msg.title }, vapid) }
 }
 
 function safeEqual(a: string, b: string) {
@@ -138,6 +165,8 @@ Deno.serve(async (req) => {
     const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
     const { data: u } = jwt ? await admin.auth.getUser(jwt) : { data: { user: null } }
     if (!u?.user) return json({ error: 'unauthorized' }, 401)
+    const body = await req.json().catch(() => ({}))
+    if (body?.teste) return json(await testar(u.user.id))
     const { data: last } = await admin.from('concurso_execucoes').select('iniciado_em').order('iniciado_em', { ascending: false }).limit(1).maybeSingle()
     if (last && Date.now() - new Date(last.iniciado_em as string).getTime() < 15 * 60e3) return json({ recente: true, ultima: last.iniciado_em })
     return json(await varrer('app'))

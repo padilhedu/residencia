@@ -79,4 +79,17 @@ describe('links de página', () => {
     const r = parseLinks(html, 'https://www.gov.br/ebserh/enare', 'Ebserh', 'enare')
     expect(r).toEqual([{ titulo: 'Edital de abertura do processo seletivo', url: 'https://www.gov.br/edital-enare.pdf', fonte: 'Ebserh', hint: 'enare' }])
   })
+  it('usa o texto logo após o link (cargos) para decidir e classificar', () => {
+    const html = `<nav><a href="/sc">Concursos em Santa Catarina</a></nav>
+      <div class="item"><h3><a href="/c/rancho-queimado">Prefeitura de Rancho Queimado</a></h3><p>Cargos: Cirurgião-Dentista, Enfermeiro. Inscrições até 05/12/2026.</p></div>
+      <div class="item"><h3><a href="/c/tubarao">Câmara Municipal de Tubarão</a></h3><p>Cargos: Contador. Inscrições até 01/12.</p></div>`
+    const r = parseLinks(html, 'https://site.com/concursos/sc', 'Site')
+    expect(r.map((x) => x.url)).toEqual(['https://site.com/c/rancho-queimado'])
+    const it = toItem({ ...r[0], uf: 'SC' }, ref)
+    expect(it).toMatchObject({ categoria: 'sc', inscricoes_ate: '2026-12-05', orgao: 'Prefeitura de Rancho Queimado' })
+  })
+  it('página de cargo (só dentista) aceita o órgão sem a palavra dentista', () => {
+    expect(classify(raw('Prefeitura de Lages - SC', '2 vagas', { dentista: true }))?.categoria).toBe('sc')
+    expect(classify(raw('Prefeitura de Lages - SC', '2 vagas'))).toBeNull()
+  })
 })

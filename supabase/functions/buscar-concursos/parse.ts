@@ -53,8 +53,9 @@ const MULTI = /residencia (multiprofissional|uniprofissional|em area profissiona
 const ENARE = /\benare\b|exame nacional de residencia/
 const SC_CIDADE = /\b(florianopolis|joinville|blumenau|sao jose|chapeco|criciuma|itajai|jaragua do sul|lages|palhoca|balneario camboriu|brusque|tubarao|camboriu|navegantes|concordia|rio do sul|ararangua|gaspar|indaial|cacador|biguacu|itapema|sao bento do sul|mafra|canoinhas|videira|xanxere|joacaba|santo amaro da imperatriz|tijucas|imbituba|laguna|ufsc|udesc|fepese|ses\/sc|ses-sc|hu-ufsc|hospital universitario polydoro)\b/
 const UF_RE = /(?:^|[\s(/–-])(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)(?=$|[\s)/,.;:–-])/g
-// Cargos de apoio em saúde bucal e exames do concurso ("avaliação médica e odontológica") não são vaga de dentista
-const AUX = /auxiliar (de |em )?(saude bucal|consultorio dentario|consultorio odontologico|dentista|odontologia)|auxiliar odontologico|atendente de consultorio (dentario|odontologico)|tecnico (em|de) (saude bucal|higiene dental)|tecnico em protese dentaria|protetico|\b(asb|tsb|thd)\b|(exames?|avaliac(ao|oes)|inspec(ao|oes))[^.;]{0,30}?odontologic[ao]s?/g
+// Cargos de apoio em saúde bucal, exames do concurso ("avaliação médica e odontológica"), benefícios ("plano
+// odontológico") e o registro no CRO exigido de auxiliares não são vaga de dentista
+const AUX = /auxiliar (de |em )?(saude bucal|consultorio dentario|consultorio odontologico|dentista|odontologia)|auxiliar odontologico|atendente de consultorio (dentario|odontologico)|tecnico (em|de) (saude bucal|higiene dental)|tecnico em protese dentaria|protetico|\b(asb|tsb|thd)\b|(exames?|avaliac(ao|oes)|inspec(ao|oes)|plano|assistencia|convenio|auxilio)[^.;]{0,30}?odontologic[ao]s?|conselho regional de odontologia/g
 const NOISE = /\bresultado (final|preliminar)|\bgabarito|\baprovados\b|\bconvoca(cao|dos)|\bhomologa/
 
 export function ufOf(text: string): string | null {
@@ -75,9 +76,11 @@ export function classify(r: Raw): { categoria: Categoria; uf: string | null } | 
   const semAux = t.replace(AUX, ' ')
   if (!r.dentista && semAux !== t && !DENT.test(semAux)) return null
   const dent = !!r.dentista || DENT.test(t)
-  if (r.hint === 'enare' || ENARE.test(t)) return { categoria: 'enare', uf }
+  // vaga de dentista já confirmada: ENARE/residência só se for o assunto (título), não um requisito no texto
+  const tr = r.dentista ? titleN : t
+  if (r.hint === 'enare' || ENARE.test(tr)) return { categoria: 'enare', uf }
   if (r.hint === 'residencia' && (dent || RESID.test(t) || /edital|processo seletivo/.test(t))) return { categoria: 'residencia', uf }
-  if (RESID.test(t) && (dent || MULTI.test(t))) return { categoria: 'residencia', uf }
+  if (RESID.test(tr) && (dent || MULTI.test(t))) return { categoria: 'residencia', uf }
   if (dent && (uf === 'SC' || SC_CIDADE.test(t))) return { categoria: 'sc', uf: 'SC' }
   return null
 }
@@ -317,8 +320,10 @@ export function parseDetalhe(html: string, url: string, fonte: string): Raw | nu
   const n = norm(texto)
   // procura o cargo depois de apagar (mantendo as posições) auxiliares/técnicos e exames odontológicos
   const dm = n.replace(AUX, (m) => ' '.repeat(m.length)).search(DENT)
-  const ehResid = RESID.test(n) && (dm >= 0 || MULTI.test(n))
-  const ehEnare = ENARE.test(norm(titulo))
+  // residência só quando é o assunto da página (título), não "residência em Ginecologia" exigida de um médico
+  const tn = norm(titulo)
+  const ehResid = (RESID.test(tn) && (dm >= 0 || MULTI.test(n))) || MULTI.test(tn)
+  const ehEnare = ENARE.test(tn)
   if (dm < 0 && !ehResid && !ehEnare) return null
   const partes: string[] = []
   if (dm >= 0) partes.push(trecho(texto, dm, 200, 250))

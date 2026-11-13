@@ -127,7 +127,11 @@ describe('busca em dois níveis', () => {
     expect(parseDetalhe('<h1>Prefeitura de Concórdia</h1><p>Auxiliar Odontológico (1) Técnico em Higiene Dental (1)</p>', 'u', 'Ache')).toBeNull()
     const lz = parseDetalhe('<h1>Prefeitura de Luzerna-SC</h1><p>Auxiliar de Saúde Bucal (Cr) ' + 'x '.repeat(300) + 'Cirurgião-Dentista (1) R$ 9.000,00</p>', 'u', 'Ache')!
     expect(lz.texto).toMatch(/Cirurgião-Dentista/)
-    const res = parseDetalhe('<h1>HU-UFSC seleciona residentes</h1><article><p>Residência Multiprofissional em Saúde: vagas para Odontologia.</p></article>', 'u', 'Ache')!
+    expect(parseDetalhe('<h1>Concurso CASAN-SC</h1><p>Benefícios: plano de saúde e odontológico.</p>', 'u', 'Ache')).toBeNull()
+    expect(parseDetalhe('<h1>Edital Jaraguá do Sul-SC</h1><p>Técnico em Saúde Bucal: ensino médio e registro no Conselho Regional de Odontologia.</p>', 'u', 'Ache')).toBeNull()
+    const mar = parseDetalhe('<h1>Edital de Maravilha-SC</h1><p>Médico: residência em Ginecologia. Odontólogo - Saúde da Família R$ 8.638,98</p>', 'u', 'Ache')!
+    expect(classify({ ...mar, uf: 'SC' })?.categoria).toBe('sc')
+    const res = parseDetalhe('<h1>HU-UFSC: Residência Multiprofissional 2027</h1><article><p>Residência Multiprofissional em Saúde: vagas para Odontologia.</p></article>', 'u', 'Ache')!
     expect(classify({ ...res, uf: 'SC' })?.categoria).toBe('residencia')
   })
 })

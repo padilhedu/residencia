@@ -13,6 +13,8 @@ import { InstallHint } from '../components/InstallHint'
 import { useFlash } from '../lib/decks'
 import { SprintToday } from './Sprint'
 import { sprintActive } from '../data/sprint'
+import { ativo, situacao, trackOf, useConcursos } from '../lib/concursos'
+import { useData } from '../lib/store'
 
 export function Hoje() {
   const { weeks, done, study } = usePlan()
@@ -56,6 +58,8 @@ export function Hoje() {
       </div>
 
       {sprintActive(today) && <SprintToday />}
+
+      <RadarResumo />
 
       {d.attempts.length === 0 && !sprintActive(today) && (
         <div className="card gold" style={{ marginTop: 12 }}>
@@ -152,5 +156,26 @@ export function Hoje() {
 
       <InstallHint />
     </>
+  )
+}
+
+/** Atalho para o radar de concursos: quantos editais ativos e quantos encerram nesta semana */
+function RadarResumo() {
+  const { items } = useConcursos()
+  const d = useData()
+  const today = todayISO()
+  const vis = items.filter((c) => !trackOf(d, c.id).oculto && ativo(c, today))
+  if (!vis.length) return null
+  const novos = vis.filter((c) => Date.now() - Date.parse(c.primeiro_visto) < 3 * 864e5).length
+  const fim = vis.filter((c) => situacao(c, today) === 'encerrando').length
+  return (
+    <a className="card" href="#/concursos" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
+      <h2 style={{ marginBottom: 2 }}>Radar de concursos</h2>
+      <div className="muted">
+        {vis.length} {vis.length === 1 ? 'edital ativo' : 'editais ativos'} (SC, ENARE e residências)
+        {novos > 0 && <> · <b>{novos} {novos === 1 ? 'novo' : 'novos'}</b></>}
+        {fim > 0 && <> · {fim} {fim === 1 ? 'encerra' : 'encerram'} em até 7 dias</>}
+      </div>
+    </a>
   )
 }

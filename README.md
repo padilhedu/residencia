@@ -17,6 +17,8 @@ Funciona no celular como app instalado e **sem internet**. Com login, o progress
 | **Gabaritos** (`#/gabaritos`) | Gabaritos definitivos das bancas, questões anuladas e onde a banca diverge da resolução de estudo; importador para o ENARE |
 | **Flashcards** (`#/cards`) | Cartões automáticos das questões que você errou + baralho de lei seca (CF, 8.080, 8.142, 7.508, LC 141, PNAB, saúde bucal, exercício profissional), com revisão espaçada própria |
 
+| **Concursos** | **Radar de editais** para cirurgião-dentista: concursos em **SC**, **ENARE** e **residências em Odontologia** (uni e multiprofissionais) no Brasil. Busca **semanal** nos sites de concursos, filtros, prazo de inscrição, acompanhar/inscrito/ocultar e **aviso no celular toda segunda** com os editais novos |
+
 Também: **tempo médio por questão em cada tema** (Revisão), comparado ao ritmo das provas (ENARE 3 min/questão; FDT 4 min/questão), e **lembrete diário no celular** (Ajustes) quando houver revisão pendente.
 
 ### Revisão espaçada (prioriza os menores % de acerto)
@@ -45,6 +47,18 @@ O gabarito definitivo do **ENARE 2026/27** (FGV) ainda não saiu (previsto para 
 - O app envia ao Supabase a previsão de revisões por dia (`user_state`, tipo `forecast`); a Edge Function [`send-reminders`](supabase/functions/send-reminders/index.ts) roda **de hora em hora** (pg_cron + pg_net) e notifica quem está no horário escolhido **e** tem pendências.
 - Web Push implementado só com WebCrypto ([`webpush.ts`](supabase/functions/send-reminders/webpush.ts), testado em `webpush.test.ts`). Chaves VAPID e segredo do cron ficam no **Vault** (`vapid_public`, `vapid_private`, `vapid_subject`, `reminder_cron_secret`, `project_url`); a função lê pela RPC `reminder_config()` (só `service_role`).
 - iPhone/iPad: só com o app instalado na Tela de Início (iOS 16.4+).
+
+### Radar de concursos
+
+- A Edge Function [`buscar-concursos`](supabase/functions/buscar-concursos/index.ts) roda **toda segunda-feira às 07h23** (pg_cron). As listagens dos sites mostram só o órgão, então para cada fonte do tipo `lista` ela **abre a página de cada concurso** e procura o cargo lá dentro:
+  - **Ache Concursos** (SC e "abertos no Brasil", para residências), **JC Concursos** (SC e nacionais, para ENARE/Ebserh), **Concursos no Brasil** (feed de SC) e a página da **SES/SC** (PSS da residência multiprofissional).
+  - A Ache responde 429 se receber muitas requisições: ela é lida uma página por vez, com pausa (`paralelo`/`pausa_ms` em `concurso_fontes`), e a varredura para ao primeiro 429.
+  - Páginas já verificadas ficam em `concurso_paginas` e não são reabertas por 120 dias. Toda semana só os concursos novos são abertos; a carga inicial se completa em poucas execuções.
+  - Ficaram desligadas (testadas em 13/11/2026): PCI Concursos (recusa conexões de servidores), Atlas Público (Cloudflare), Folha Dirigida e página antiga do ENARE (404), buscas do Concursos no Brasil (não filtram) e Google Notícias.
+- O filtro ([`parse.ts`](supabase/functions/buscar-concursos/parse.ts), testado em `parse.test.ts`) guarda: vaga de **dentista/odontólogo em SC** (com inscrições abertas), **ENARE** e **residências** (quando são o assunto da página). Ignora texto de links (ex.: "Prova ... Dentista" na JC), cargos auxiliares/técnicos em saúde bucal, "avaliação médica e odontológica" (exame), "plano odontológico" (benefício) e o registro no CRO exigido de auxiliares.
+- **Aviso semanal**: logo após a varredura, cada aparelho com notificações ativadas recebe um resumo ([`resumo.ts`](supabase/functions/buscar-concursos/resumo.ts)) com os editais novos e as inscrições que encerram em 7 dias — ligado por padrão; dá para escolher categorias ou desligar na aba Concursos. **Testar aviso agora** manda o resumo na hora.
+- Diagnóstico: `concurso_fontes.ultimo_status` mostra, por fonte, quantos links havia, quantos foram abertos e se houve erro; cada varredura fica em `concurso_execucoes`. Para conferir sem notificar ninguém, chame a função com o cabeçalho do cron e o corpo `{"semAviso": true}`. Para esconder um falso positivo, marque `oculto = true` em `concursos`.
+- Com login, **Buscar agora** força uma varredura (no máximo a cada 15 min, sem notificação).
 
 ## Estrutura
 
@@ -95,3 +109,12 @@ Em **Authentication → URL Configuration**, defina o **Site URL** como o endere
 2. Registre a prova em `src/data/exams.ts` (`EXAMS` e `QUESTIONS`) e o PDF em `public/provas/`.
 3. Se já houver gabarito definitivo, adicione-o em `src/data/official.ts` (o da FDT 2022 já está lá, em `FDT2022_KEY`, aguardando o caderno da prova).
 4. `npm test && npm run build`, commit e push na `main` — a Vercel publica sozinha.
+
+## Publicar o radar de concursos (uma vez)
+
+```bash
+supabase db push                                  # aplica as migrations 20261113000001…4 (concursos)
+supabase functions deploy buscar-concursos        # usa os segredos do Vault já criados para o lembrete
+```
+
+Depois disso, toque em **Buscar agora** na aba Concursos (logado) para a primeira varredura — ou espere o próximo horário.

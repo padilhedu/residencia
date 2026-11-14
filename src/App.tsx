@@ -14,6 +14,7 @@ import { Ajustes } from './pages/Ajustes'
 import { Sessao } from './pages/Sessao'
 import { Gabaritos } from './pages/Gabaritos'
 import { Flashcards } from './pages/Flashcards'
+import { Concursos } from './pages/Concursos'
 import { TOPIC_MAP } from './data/topics'
 import { buildForecast, sameForecast, useFlash, type Forecast } from './lib/decks'
 
@@ -22,7 +23,8 @@ const NAV: { tab: Tab; label: string; icon: () => JSX.Element }[] = [
   { tab: 'plano', label: 'Plano', icon: Icon.plan },
   { tab: 'questoes', label: 'Questões', icon: Icon.quiz },
   { tab: 'revisao', label: 'Revisão', icon: Icon.review },
-  { tab: 'conteudo', label: 'Conteúdo', icon: Icon.book }
+  { tab: 'conteudo', label: 'Conteúdo', icon: Icon.book },
+  { tab: 'concursos', label: 'Concursos', icon: Icon.radar }
 ]
 
 const TITLES: Record<Tab, string> = {
@@ -34,7 +36,8 @@ const TITLES: Record<Tab, string> = {
   ajustes: 'Ajustes',
   sessao: 'Questões',
   gabaritos: 'Gabaritos oficiais',
-  cards: 'Flashcards'
+  cards: 'Flashcards',
+  concursos: 'Concursos e residências'
 }
 
 export function App() {
@@ -96,6 +99,7 @@ export function App() {
         {route.tab === 'ajustes' && <Ajustes />}
         {route.tab === 'sessao' && <Sessao />}
         {route.tab === 'gabaritos' && <Gabaritos />}
+        {route.tab === 'concursos' && <Concursos />}
         {route.tab === 'cards' && <Flashcards key={route.param ?? ''} deckParam={route.param} />}
       </main>
 
